@@ -22,6 +22,15 @@ function toICalDateOnly(dateStr: string): string {
   return dateStr.replace(/-/g, '');
 }
 
+function escapeICalText(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+
 /**
  * Generates an RFC 5545 compliant .ics calendar string containing recurring subscription renewal events
  */
@@ -55,19 +64,20 @@ export function generateICalendarFeed(
 
     const startDate = toICalDateOnly(sub.nextBillingDate);
     const uid = `subtrax_${sub.id}_${startDate}@subtrax.app`;
+    const cleanName = escapeICalText(sub.name);
     const summary = includeAmounts
-      ? `[Subtrax] ${sub.name} Renewal (${sub.currency || 'USD'} ${sub.amount})`
-      : `[Subtrax] ${sub.name} Renewal`;
+      ? `[Subtrax] ${cleanName} Renewal (${escapeICalText(sub.currency || 'USD')} ${sub.amount})`
+      : `[Subtrax] ${cleanName} Renewal`;
 
-    let description = `Subscription: ${sub.name}\\nAmount: ${sub.currency || 'USD'} ${sub.amount} / ${sub.billingCycle}\\nCategory: ${sub.category}`;
+    let description = `Subscription: ${cleanName}\\nAmount: ${escapeICalText(sub.currency || 'USD')} ${sub.amount} / ${sub.billingCycle}\\nCategory: ${escapeICalText(sub.category)}`;
     if (sub.accountEmail) {
-      description += `\\nAccount: ${sub.accountEmail}`;
+      description += `\\nAccount: ${escapeICalText(sub.accountEmail)}`;
     }
     if (includeCancelLinks && (sub.cancelUrl || sub.websiteUrl)) {
-      description += `\\nManage / Cancel: ${sub.cancelUrl || sub.websiteUrl}`;
+      description += `\\nManage / Cancel: ${escapeICalText(sub.cancelUrl || sub.websiteUrl)}`;
     }
     if (sub.notes) {
-      description += `\\nNotes: ${sub.notes}`;
+      description += `\\nNotes: ${escapeICalText(sub.notes)}`;
     }
 
     // Determine RRULE recurrence
@@ -89,15 +99,16 @@ export function generateICalendarFeed(
       `DTSTART;VALUE=DATE:${startDate}`,
       `SUMMARY:${summary}`,
       `DESCRIPTION:${description}`,
-      `CATEGORIES:${sub.category}`
+      `CATEGORIES:${escapeICalText(sub.category)}`
     );
 
     if (rrule) {
       lines.push(rrule);
     }
 
-    if (sub.websiteUrl || sub.cancelUrl) {
-      lines.push(`URL:${sub.cancelUrl || sub.websiteUrl}`);
+    const targetUrl = sub.cancelUrl || sub.websiteUrl;
+    if (targetUrl) {
+      lines.push(`URL:${targetUrl.replace(/[\r\n]/g, '')}`);
     }
 
     // Add reminder alarm
@@ -105,7 +116,7 @@ export function generateICalendarFeed(
       lines.push(
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
-        `DESCRIPTION:Upcoming renewal for ${sub.name}`,
+        `DESCRIPTION:Upcoming renewal for ${cleanName}`,
         `TRIGGER:-P${reminderDays}D`,
         'END:VALARM'
       );

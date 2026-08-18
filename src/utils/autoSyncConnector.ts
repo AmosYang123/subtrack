@@ -5,6 +5,7 @@
 import { findCatalogService } from './catalog';
 import { parseReceiptText } from './emailParser';
 import { Subscription, BillingCycle } from '../types';
+import { validateAutoAddPayload, getSafeExternalUrl } from './security';
 
 const AUTOSYNC_CHANNEL_NAME = 'subtrax_autosync_channel';
 
@@ -71,7 +72,8 @@ export function parseAutoAddUrlQuery(): AutoCapturedPayload | null {
     const autoAddRaw = params.get('auto_add');
     if (!autoAddRaw) return null;
 
-    const payload = JSON.parse(decodeURIComponent(autoAddRaw)) as AutoCapturedPayload;
+    const parsedRaw = JSON.parse(decodeURIComponent(autoAddRaw));
+    const payload = validateAutoAddPayload(parsedRaw);
 
     // Clean URL query parameter cleanly
     const url = new URL(window.location.href);
@@ -98,8 +100,9 @@ export function listenForAutoSyncCaptures(
   try {
     const channel = new BroadcastChannel(AUTOSYNC_CHANNEL_NAME);
     channel.onmessage = (event) => {
-      if (event.data && event.data.serviceName) {
-        onCapture(event.data);
+      const validated = validateAutoAddPayload(event.data);
+      if (validated) {
+        onCapture(validated);
       }
     };
 
@@ -136,8 +139,8 @@ export async function checkClipboardForReceipt(
         currency: parsed.detectedCurrency,
         category: parsed.detectedCategory,
         billingCycle: parsed.detectedCycle,
-        cancelUrl: parsed.cancelUrl,
-        url: parsed.websiteUrl,
+        cancelUrl: getSafeExternalUrl(parsed.cancelUrl),
+        url: getSafeExternalUrl(parsed.websiteUrl),
         timestamp: new Date().toISOString()
       };
     }

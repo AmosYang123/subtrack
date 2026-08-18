@@ -6,6 +6,7 @@ import { EmailScanItem, Subscription } from '../types';
 import { scanEmails } from '../services/tauri';
 import { convertScanItemToSubscription, parseReceiptText, SAMPLE_REAL_RECEIPTS } from '../utils/emailParser';
 import { formatCurrency } from '../utils/calculator';
+import { validateFileSize } from '../utils/security';
 
 type ScanTab = 'paste' | 'inbox' | 'samples';
 
@@ -22,6 +23,7 @@ export const EmailScanModal: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<ScanTab>('paste');
   const [pastedText, setPastedText] = useState('');
   const [parsedPastedItem, setParsedPastedItem] = useState<EmailScanItem | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -67,8 +69,14 @@ export const EmailScanModal: React.FC = () => {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!validateFileSize(file, 5)) {
+      setFileError('File size exceeds the 5MB maximum limit.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -196,6 +204,12 @@ export const EmailScanModal: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {fileError && (
+              <Alert variant="danger" style={{ fontSize: 12, padding: '6px 12px', marginBottom: 12 }}>
+                {fileError}
+              </Alert>
+            )}
 
             {/* Parsed Result Preview */}
             {parsedPastedItem && (

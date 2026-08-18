@@ -18,6 +18,7 @@ import { useAppStore } from '../services/store';
 import { Subscription } from '../types';
 import { formatCurrency, getNormalizedMonthlyCost } from '../utils/calculator';
 import { differenceInDays, parseISO, format } from 'date-fns';
+import { getSafeExternalUrl } from '../utils/security';
 
 export const MoneySaverView: React.FC = () => {
   const {
@@ -201,7 +202,9 @@ export const MoneySaverView: React.FC = () => {
           </div>
         ) : (
           <div className="d-flex flex-column gap-2.5">
-            {annualSavingsOpportunities.map(({ sub, monthlyCost, annualIfMonthly, annualDiscounted, potentialSaving }) => (
+            {annualSavingsOpportunities.map(({ sub, monthlyCost, annualIfMonthly, annualDiscounted, potentialSaving }) => {
+              const safeCancelUrl = getSafeExternalUrl(sub.cancelUrl);
+              return (
               <div
                 key={sub.id}
                 className="d-flex flex-column flex-md-row justify-content-between align-items-md-center p-3"
@@ -228,11 +231,11 @@ export const MoneySaverView: React.FC = () => {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>~17% discount</div>
                   </div>
 
-                  {sub.cancelUrl && (
+                  {safeCancelUrl && (
                     <a
-                      href={sub.cancelUrl}
+                      href={safeCancelUrl}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="btn-ghost d-flex align-items-center gap-1"
                       style={{ fontSize: 12 }}
                       title="Open account billing to switch to annual"
@@ -263,7 +266,8 @@ export const MoneySaverView: React.FC = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>
@@ -323,27 +327,30 @@ export const MoneySaverView: React.FC = () => {
                     <span>Used today</span>
                   </button>
 
-                  {sub.cancelUrl ? (
-                    <a
-                      href={sub.cancelUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn-danger-ghost d-flex align-items-center gap-1"
-                      style={{ fontSize: 12, padding: '5px 10px' }}
-                    >
-                      <ExternalLink size={13} />
-                      <span>1-Click Cancel / Pause</span>
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn-subtle"
-                      style={{ fontSize: 12 }}
-                      onClick={() => openEditModal(sub)}
-                    >
-                      Manage Plan
-                    </button>
-                  )}
+                  {(() => {
+                    const safeCancelUrl = getSafeExternalUrl(sub.cancelUrl);
+                    return safeCancelUrl ? (
+                      <a
+                        href={safeCancelUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-danger-ghost d-flex align-items-center gap-1"
+                        style={{ fontSize: 12, padding: '5px 10px' }}
+                      >
+                        <ExternalLink size={13} />
+                        <span>1-Click Cancel / Pause</span>
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-subtle"
+                        style={{ fontSize: 12 }}
+                        onClick={() => openEditModal(sub)}
+                      >
+                        Manage Plan
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
@@ -367,7 +374,9 @@ export const MoneySaverView: React.FC = () => {
           </div>
 
           <div className="d-flex flex-column gap-2.5">
-            {trialSubs.map(({ sub, daysRemaining, targetDate }) => (
+            {trialSubs.map(({ sub, daysRemaining, targetDate }) => {
+              const safeTrialCancelUrl = getSafeExternalUrl(sub.cancelUrl);
+              return (
               <div
                 key={sub.id}
                 className="d-flex flex-column flex-md-row justify-content-between align-items-md-center p-3"
@@ -391,11 +400,11 @@ export const MoneySaverView: React.FC = () => {
                 </div>
 
                 <div className="d-flex align-items-center gap-2">
-                  {sub.cancelUrl && (
+                  {safeTrialCancelUrl && (
                     <a
-                      href={sub.cancelUrl}
+                      href={safeTrialCancelUrl}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="btn-danger-ghost d-flex align-items-center gap-1"
                       style={{ fontSize: 12 }}
                     >
@@ -413,7 +422,8 @@ export const MoneySaverView: React.FC = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       )}

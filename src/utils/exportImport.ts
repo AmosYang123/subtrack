@@ -1,4 +1,5 @@
 import { Subscription, BillingCycle, SubscriptionStatus } from '../types';
+import { sanitizeCsvCell, parseCsvLineSafe } from './security';
 
 export function exportSubscriptionsToCSV(subscriptions: Subscription[]): string {
   const headers = [
@@ -15,27 +16,33 @@ export function exportSubscriptionsToCSV(subscriptions: Subscription[]): string 
   ];
 
   const rows = subscriptions.map(sub => [
-    `"${sub.id}"`,
-    `"${sub.name.replace(/"/g, '""')}"`,
+    sanitizeCsvCell(sub.id),
+    sanitizeCsvCell(sub.name),
     sub.amount,
-    `"${sub.currency}"`,
-    `"${sub.billingCycle}"`,
-    `"${sub.nextBillingDate}"`,
-    `"${sub.category}"`,
-    `"${sub.status}"`,
-    `"${(sub.websiteUrl || '').replace(/"/g, '""')}"`,
-    `"${(sub.notes || '').replace(/"/g, '""')}"`
+    sanitizeCsvCell(sub.currency),
+    sanitizeCsvCell(sub.billingCycle),
+    sanitizeCsvCell(sub.nextBillingDate),
+    sanitizeCsvCell(sub.category),
+    sanitizeCsvCell(sub.status),
+    sanitizeCsvCell(sub.websiteUrl || ''),
+    sanitizeCsvCell(sub.notes || '')
   ]);
 
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 }
 
 export function exportSubscriptionsToJSON(subscriptions: Subscription[]): string {
+  // Strip sensitive account passwords before exporting backup files
+  const sanitizedSubs = subscriptions.map(sub => {
+    const { accountPassword, ...rest } = sub;
+    return rest;
+  });
+
   return JSON.stringify(
     {
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      subscriptions
+      subscriptions: sanitizedSubs
     },
     null,
     2
@@ -46,7 +53,7 @@ export function parseSubscriptionsFromCSV(csvText: string): Partial<Subscription
   const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length <= 1) return [];
 
-  const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+  const headers = parseCsvLineSafe(lines[0]).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
   const nameIdx = headers.findIndex(h => h.includes('name') || h.includes('service') || h.includes('title'));
   const amountIdx = headers.findIndex(h => h.includes('amount') || h.includes('cost') || h.includes('price'));
   const cycleIdx = headers.findIndex(h => h.includes('cycle') || h.includes('frequency') || h.includes('period'));
@@ -57,15 +64,8 @@ export function parseSubscriptionsFromCSV(csvText: string): Partial<Subscription
   const parsed: Partial<Subscription>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    // Simple CSV parser handling quotes
-    const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
-    const matches: string[] = [];
-    let match;
-    while ((match = regex.exec(lines[i])) !== null) {
-      if (match.index === regex.lastIndex) regex.lastIndex++;
-      let val = match[1] ? match[1].replace(/^"|"$/g, '').replace(/""/g, '"').trim() : '';
-      matches.push(val);
-    }
+    const matches = parseCsvLineSafe(lines[i]);
+    if (matches.length === 0) continue;
 
     const name = nameIdx !== -1 && matches[nameIdx] ? matches[nameIdx] : matches[0];
     if (!name) continue;

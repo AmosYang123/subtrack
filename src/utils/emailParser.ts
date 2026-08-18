@@ -107,8 +107,9 @@ function extractCardNumber(text: string): string | undefined {
  */
 export function parseReceiptText(rawText: string, existingSubs: Subscription[] = []): EmailScanItem | null {
   if (!rawText || rawText.trim().length < 5) return null;
+  const boundedText = rawText.slice(0, 50_000); // 50KB cap for receipt scanning
 
-  const textToScan = rawText.toLowerCase();
+  const textToScan = boundedText.toLowerCase();
 
   // 1. Match catalog service by longest matched alias
   let detectedService = '';

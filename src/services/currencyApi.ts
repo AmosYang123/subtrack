@@ -7,7 +7,7 @@ export interface ExchangeRatesData {
   lastUpdated: string;
 }
 
-const CACHE_KEY = 'subtrack_exchange_rates_v1';
+const CACHE_KEY_PREFIX = 'subtrack_exchange_rates_';
 const CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 // Static fallback rates (relative to USD) in case network is offline
@@ -28,10 +28,16 @@ export const FALLBACK_RATES: Record<string, number> = {
   BRL: 5.15
 };
 
+// In-flight request deduplication map to prevent duplicate burst requests
+const inFlightRequests = new Map<string, Promise<ExchangeRatesData>>();
+
 export async function fetchLiveExchangeRates(baseCurrency: string = 'USD'): Promise<ExchangeRatesData> {
+  const normBase = (baseCurrency || 'USD').toUpperCase();
+  const cacheKey = `${CACHE_KEY_PREFIX}${normBase}`;
+
   // Check cached rates first
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached) as ExchangeRatesData;
       const age = Date.now() - new Date(parsed.lastUpdated).getTime();
@@ -43,38 +49,49 @@ export async function fetchLiveExchangeRates(baseCurrency: string = 'USD'): Prom
     console.warn('Failed to read exchange rate cache:', e);
   }
 
-  // Fetch live rates from public API
-  try {
-    const response = await fetch(`https://open.er-api.com/v6/latest/${baseCurrency}`, {
-      cache: 'default'
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.result === 'success' && data.rates) {
-        const ratesData: ExchangeRatesData = {
-          base: baseCurrency,
-          rates: data.rates,
-          lastUpdated: new Date().toISOString()
-        };
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(ratesData));
-        } catch {
-          // localStorage write failed (quota), ignore
-        }
-        return ratesData;
-      }
-    }
-  } catch (err) {
-    console.warn('Could not fetch live exchange rates, using fallback:', err);
+  // Deduplicate in-flight requests for the same base currency
+  if (inFlightRequests.has(normBase)) {
+    return inFlightRequests.get(normBase)!;
   }
 
-  // Fallback if offline or API error
-  return {
-    base: baseCurrency,
-    rates: FALLBACK_RATES,
-    lastUpdated: new Date().toISOString()
-  };
+  const fetchPromise = (async (): Promise<ExchangeRatesData> => {
+    try {
+      const response = await fetch(`https://open.er-api.com/v6/latest/${normBase}`, {
+        cache: 'default'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.result === 'success' && data.rates) {
+          const ratesData: ExchangeRatesData = {
+            base: normBase,
+            rates: data.rates,
+            lastUpdated: new Date().toISOString()
+          };
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(ratesData));
+          } catch {
+            // localStorage write failed (quota), ignore
+          }
+          return ratesData;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch live exchange rates, using fallback:', err);
+    } finally {
+      inFlightRequests.delete(normBase);
+    }
+
+    // Fallback if offline or API error
+    return {
+      base: normBase,
+      rates: FALLBACK_RATES,
+      lastUpdated: new Date().toISOString()
+    };
+  })();
+
+  inFlightRequests.set(normBase, fetchPromise);
+  return fetchPromise;
 }
 
 /**

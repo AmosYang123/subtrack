@@ -23,6 +23,7 @@ import { parseBankStatementCSV } from '../utils/statementParser';
 import { REAL_DATA_PRESETS } from '../utils/presets';
 import { Subscription, StatementParsedItem } from '../types';
 import { formatCurrency } from '../utils/calculator';
+import { validateFileSize } from '../utils/security';
 import { format, addMonths } from 'date-fns';
 
 type ModalTab = 'presets' | 'statement' | 'backup';
@@ -60,6 +61,11 @@ export const ImportExportModal: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!validateFileSize(file, 5)) {
+      setImportError('Bank statement file exceeds the 5MB maximum limit.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -81,6 +87,11 @@ export const ImportExportModal: React.FC = () => {
     setImportError(null);
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!validateFileSize(file, 5)) {
+      setImportError('Backup file exceeds the 5MB maximum limit.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {

@@ -17,6 +17,7 @@ import {
   getNormalizedMonthlyCost
 } from '../utils/calculator';
 import { CATEGORY_COLORS } from '../utils/catalog';
+import { getSafeExternalUrl } from '../utils/security';
 
 export const SubscriptionTable: React.FC = () => {
   const {
@@ -120,6 +121,7 @@ export const SubscriptionTable: React.FC = () => {
             const renewal = formatRenewal(daysLeft);
             const monthlyRate = getNormalizedMonthlyCost(sub.amount, sub.billingCycle, sub.currency || 'USD', currency, exchangeRates);
             const categoryColor = CATEGORY_COLORS[sub.category] || '#64748b';
+            const safeDirectUrl = getSafeExternalUrl(sub.cancelUrl || sub.websiteUrl);
 
             return (
               <tr key={sub.id}>
@@ -137,8 +139,8 @@ export const SubscriptionTable: React.FC = () => {
                           Dormant
                         </span>
                       )}
-                      {(sub.cancelUrl || sub.websiteUrl) && (
-                        <a href={sub.cancelUrl || sub.websiteUrl} target="_blank" rel="noreferrer"
+                      {safeDirectUrl && (
+                        <a href={safeDirectUrl} target="_blank" rel="noopener noreferrer"
                            style={{ color: 'var(--text-muted)' }}
                            title="1-Click Manage / Cancel Plan">
                           <ExternalLink size={12} />
@@ -237,8 +239,8 @@ export const SubscriptionTable: React.FC = () => {
                           <><PlayCircle size={13} className="me-2" /> Resume</>
                         )}
                       </Dropdown.Item>
-                      {(sub.cancelUrl || sub.websiteUrl) && (
-                        <Dropdown.Item href={sub.cancelUrl || sub.websiteUrl} target="_blank">
+                      {safeDirectUrl && (
+                        <Dropdown.Item href={safeDirectUrl} target="_blank" rel="noopener noreferrer">
                           <ExternalLink size={13} className="me-2" />
                           <span>{sub.cancelUrl ? '1-Click Cancel / Manage' : 'Manage plan'}</span>
                         </Dropdown.Item>

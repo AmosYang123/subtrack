@@ -29,6 +29,7 @@ import {
 import { getNextRenewalDate } from '../utils/calculator';
 import { generateStrongPassword, evaluatePasswordStrength } from '../utils/passwordGenerator';
 import { format } from 'date-fns';
+import { getSafeExternalUrl } from '../utils/security';
 
 export const SubscriptionModal: React.FC = () => {
   const {
@@ -449,16 +450,19 @@ export const SubscriptionModal: React.FC = () => {
               <Form.Group>
                 <Form.Label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                   <span>Direct 1-Click Cancellation / Billing Link</span>
-                  {formData.cancelUrl && (
-                    <a
-                      href={formData.cancelUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: 11, color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
-                    >
-                      <ExternalLink size={11} /> Test link
-                    </a>
-                  )}
+                  {(() => {
+                    const safeCancelUrl = getSafeExternalUrl(formData.cancelUrl);
+                    return safeCancelUrl ? (
+                      <a
+                        href={safeCancelUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 11, color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <ExternalLink size={11} /> Test link
+                      </a>
+                    ) : null;
+                  })()}
                 </Form.Label>
                 <Form.Control
                   type="url"

@@ -12,21 +12,16 @@
     "allowlist": {
       "all": false,
       "fs": {
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "listDir": true,
-        "copyFile": true,
-        "createDir": true
+        "all": false
       },
       "path": {
-        "all": true
+        "all": false
       },
       "dialog": {
-        "all": true
+        "all": false
       },
       "process": {
-        "all": true
+        "all": false
       }
     },
     "bundle": {

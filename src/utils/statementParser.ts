@@ -58,11 +58,13 @@ export function parseBankStatementCSV(
   csvContent: string,
   existingSubs: Subscription[] = []
 ): StatementParsedItem[] {
-  const lines = csvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (!csvContent || csvContent.trim().length === 0) return [];
+  const boundedContent = csvContent.slice(0, 5_000_000); // 5MB cap
+  const lines = boundedContent.split(/\r?\n/).filter(line => line.trim().length > 0);
   if (lines.length <= 1) return [];
 
   // 1. Detect headers and column indexes
-  const headerLine = lines[0];
+  const headerLine = lines[0].slice(0, 2000);
   const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim());
 
   let dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time') || h.includes('posted'));
@@ -84,7 +86,8 @@ export function parseBankStatementCSV(
   const rawRows: ParsedRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
+    const safeLine = lines[i].slice(0, 1000);
+    const cols = parseCSVLine(safeLine);
     if (cols.length <= Math.max(dateIdx, descIdx, amountIdx)) continue;
 
     const rawDesc = cols[descIdx] || '';

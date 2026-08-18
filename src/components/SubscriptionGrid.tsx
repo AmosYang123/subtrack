@@ -15,6 +15,7 @@ import {
   getNormalizedMonthlyCost
 } from '../utils/calculator';
 import { CATEGORY_COLORS } from '../utils/catalog';
+import { getSafeExternalUrl } from '../utils/security';
 
 export const SubscriptionGrid: React.FC = () => {
   const {
@@ -65,6 +66,7 @@ export const SubscriptionGrid: React.FC = () => {
         const categoryColor = CATEGORY_COLORS[sub.category] || '#64748b';
         const renewalLabel = daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft} days`;
         const renewalClass = daysLeft <= 1 ? 'renewal-urgent' : daysLeft <= 7 ? 'renewal-soon' : 'renewal-normal';
+        const safeDirectUrl = getSafeExternalUrl(sub.cancelUrl || sub.websiteUrl);
 
         return (
           <Col key={sub.id} xs={12} sm={6} lg={4} xl={3}>
@@ -109,8 +111,8 @@ export const SubscriptionGrid: React.FC = () => {
                         : <><PlayCircle size={13} className="me-2" /> Resume</>
                       }
                     </Dropdown.Item>
-                    {(sub.cancelUrl || sub.websiteUrl) && (
-                      <Dropdown.Item href={sub.cancelUrl || sub.websiteUrl} target="_blank">
+                    {safeDirectUrl && (
+                      <Dropdown.Item href={safeDirectUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink size={13} className="me-2" />
                         <span>{sub.cancelUrl ? '1-Click Cancel / Manage' : 'Manage plan'}</span>
                       </Dropdown.Item>
