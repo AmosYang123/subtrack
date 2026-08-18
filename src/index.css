@@ -122,17 +122,31 @@ body {
    ========================================================================== */
 
 .app-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 24px;
-  height: 52px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+}
+
+.app-nav-inner {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 28px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 
 .app-nav-brand {
@@ -147,6 +161,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  text-decoration: none;
 }
 
 /* Input Icon Container to eliminate text overlapping */
@@ -191,6 +206,12 @@ body {
   padding: 3px;
   border-radius: var(--radius);
   border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .app-nav-tab {
@@ -206,6 +227,7 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: color var(--transition-fast), background var(--transition-fast);
+  white-space: nowrap;
 }
 
 .app-nav-tab:hover {
@@ -223,6 +245,26 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .app-nav-inner {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-nav-inner {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .app-nav-tab span {
+    display: none;
+  }
+  .app-nav-tab {
+    padding: 5px 8px;
+  }
 }
 
 /* ==========================================================================
