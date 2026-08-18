@@ -125,12 +125,22 @@ export const SubscriptionTable: React.FC = () => {
               <tr key={sub.id}>
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{sub.name}</span>
-                      {sub.websiteUrl && (
-                        <a href={sub.websiteUrl} target="_blank" rel="noreferrer"
+                      {sub.isTrial && (
+                        <span className="badge-tag badge-danger-subtle" style={{ fontSize: 10 }}>
+                          Trial
+                        </span>
+                      )}
+                      {sub.usageFrequency === 'dormant' && (
+                        <span className="badge-tag badge-warning-subtle" style={{ fontSize: 10 }}>
+                          Dormant
+                        </span>
+                      )}
+                      {(sub.cancelUrl || sub.websiteUrl) && (
+                        <a href={sub.cancelUrl || sub.websiteUrl} target="_blank" rel="noreferrer"
                            style={{ color: 'var(--text-muted)' }}
-                           title="Open official website">
+                           title="1-Click Manage / Cancel Plan">
                           <ExternalLink size={12} />
                         </a>
                       )}
@@ -227,9 +237,10 @@ export const SubscriptionTable: React.FC = () => {
                           <><PlayCircle size={13} className="me-2" /> Resume</>
                         )}
                       </Dropdown.Item>
-                      {sub.websiteUrl && (
-                        <Dropdown.Item href={sub.websiteUrl} target="_blank">
-                          <ExternalLink size={13} className="me-2" /> Manage plan
+                      {(sub.cancelUrl || sub.websiteUrl) && (
+                        <Dropdown.Item href={sub.cancelUrl || sub.websiteUrl} target="_blank">
+                          <ExternalLink size={13} className="me-2" />
+                          <span>{sub.cancelUrl ? '1-Click Cancel / Manage' : 'Manage plan'}</span>
                         </Dropdown.Item>
                       )}
                       <Dropdown.Divider />

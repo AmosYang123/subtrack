@@ -72,7 +72,19 @@ export const SubscriptionGrid: React.FC = () => {
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{sub.name}</div>
+                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{sub.name}</span>
+                    {sub.isTrial && (
+                      <span className="badge-tag badge-danger-subtle" style={{ fontSize: 9.5 }}>
+                        Trial
+                      </span>
+                    )}
+                    {sub.usageFrequency === 'dormant' && (
+                      <span className="badge-tag badge-warning-subtle" style={{ fontSize: 9.5 }}>
+                        Dormant
+                      </span>
+                    )}
+                  </div>
                   {sub.accountEmail && (
                     <div style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 500, marginTop: 1 }}>
                       {sub.accountEmail}
@@ -97,9 +109,10 @@ export const SubscriptionGrid: React.FC = () => {
                         : <><PlayCircle size={13} className="me-2" /> Resume</>
                       }
                     </Dropdown.Item>
-                    {sub.websiteUrl && (
-                      <Dropdown.Item href={sub.websiteUrl} target="_blank">
-                        <ExternalLink size={13} className="me-2" /> Manage plan
+                    {(sub.cancelUrl || sub.websiteUrl) && (
+                      <Dropdown.Item href={sub.cancelUrl || sub.websiteUrl} target="_blank">
+                        <ExternalLink size={13} className="me-2" />
+                        <span>{sub.cancelUrl ? '1-Click Cancel / Manage' : 'Manage plan'}</span>
                       </Dropdown.Item>
                     )}
                     <Dropdown.Divider />

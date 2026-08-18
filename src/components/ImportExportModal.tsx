@@ -130,6 +130,8 @@ export const ImportExportModal: React.FC = () => {
       nextBillingDate: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
       category: item.category || 'Other',
       paymentMethodId: defaultPmId,
+      cancelUrl: item.cancelUrl,
+      websiteUrl: item.websiteUrl,
       notes: `Imported from statement charge: "${item.rawMerchant}"`,
       status: 'active',
       createdAt: new Date().toISOString()
@@ -297,11 +299,15 @@ export const ImportExportModal: React.FC = () => {
           <div>
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 2 }}>
-                Import from bank / card export CSV
+                Import from bank / card export statement
               </div>
               <p style={{ color: 'var(--text-muted)', fontSize: 12.5, margin: 0 }}>
-                Upload an exported CSV from Chase, Amex, Bank of America, Apple Card, Revolut, Monzo, PayPal, or Stripe. SubTrax will automatically identify recurring subscriptions.
+                Upload an exported CSV from Chase, Amex, Bank of America, Apple Card, Revolut, Monzo, PayPal, or Stripe. Subtrax will automatically identify recurring subscriptions.
               </p>
+            </div>
+
+            <div className="d-flex align-items-center gap-2 p-2 mb-3" style={{ background: 'var(--primary-bg)', border: '1px solid var(--primary-border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--primary-text)' }}>
+              <span>🔒 <strong>100% Client-Side Privacy Guarantee:</strong> Your statement is parsed entirely inside your browser memory. No financial numbers, account balances, or statements are ever uploaded or transmitted to any server.</span>
             </div>
 
             <div style={{ padding: '16px', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', textAlign: 'center', marginBottom: 14 }}>

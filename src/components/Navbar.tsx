@@ -13,7 +13,9 @@ import {
   Sparkles,
   RefreshCw,
   Cloud,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  CalendarDays
 } from 'lucide-react';
 import { useAppStore } from '../services/store';
 import { CURRENCIES } from '../utils/catalog';
@@ -34,12 +36,15 @@ export const Navbar: React.FC = () => {
     setEmailScanModalOpen,
     setImportExportModalOpen,
     setAuthModalOpen,
+    setCalendarSyncModalOpen,
+    setAutoSyncModalOpen,
     user,
     syncStatus
   } = useAppStore();
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
     { id: 'subscriptions', label: 'Subscriptions', icon: <Layers size={15} /> },
+    { id: 'optimizer', label: 'Savings', icon: <Sparkles size={15} style={{ color: 'var(--primary)' }} /> },
     { id: 'analytics', label: 'Analytics', icon: <PieChart size={15} /> },
     { id: 'calendar', label: 'Calendar', icon: <Calendar size={15} /> },
     { id: 'payments', label: 'Cards', icon: <CreditCard size={15} /> }
@@ -123,6 +128,26 @@ export const Navbar: React.FC = () => {
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+
+        {/* Zero-Touch Auto-Sync helper */}
+        <button
+          className="btn-subtle d-flex align-items-center gap-1.5"
+          onClick={() => setAutoSyncModalOpen(true)}
+          title="Zero-Touch Auto-Sync directly from checkout pages"
+        >
+          <Zap size={14} style={{ color: 'var(--primary)' }} />
+          <span>Auto-Sync</span>
+        </button>
+
+        {/* Native Calendar Sync */}
+        <button
+          className="btn-subtle d-flex align-items-center gap-1.5"
+          onClick={() => setCalendarSyncModalOpen(true)}
+          title="Sync renewal alarms with Apple / Google / Outlook Calendar"
+        >
+          <CalendarDays size={14} />
+          <span>Cal Sync</span>
         </button>
 
         {/* Cloud Sync & Account */}

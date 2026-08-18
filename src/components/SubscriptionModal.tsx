@@ -9,11 +9,23 @@ import {
   Sparkles,
   Mail,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  ExternalLink,
+  Zap,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { useAppStore } from '../services/store';
 import { Subscription, BillingCycle, SubscriptionStatus } from '../types';
-import { POPULAR_SERVICES, CATEGORIES, CURRENCIES, CATEGORY_COLORS, CatalogService } from '../utils/catalog';
+import {
+  POPULAR_SERVICES,
+  CATEGORIES,
+  CURRENCIES,
+  CATEGORY_COLORS,
+  CatalogService,
+  findCatalogService,
+  searchCatalog
+} from '../utils/catalog';
 import { getNextRenewalDate } from '../utils/calculator';
 import { generateStrongPassword, evaluatePasswordStrength } from '../utils/passwordGenerator';
 import { format } from 'date-fns';
@@ -42,6 +54,12 @@ export const SubscriptionModal: React.FC = () => {
     accountEmail: '',
     accountPassword: '',
     passwordHint: '',
+    cancelUrl: '',
+    isTrial: false,
+    trialEndDate: '',
+    lastUsedDate: format(new Date(), 'yyyy-MM-dd'),
+    usageFrequency: 'daily',
+    annualPrice: undefined,
     status: 'active',
     websiteUrl: '',
     notes: '',
@@ -52,6 +70,7 @@ export const SubscriptionModal: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [autofillSuggestions, setAutofillSuggestions] = useState<CatalogService[]>([]);
 
   useEffect(() => {
     if (editingSubscription) {
@@ -70,6 +89,12 @@ export const SubscriptionModal: React.FC = () => {
         accountEmail: user?.email || (suggestedAccountEmails[0] || ''),
         accountPassword: '',
         passwordHint: '',
+        cancelUrl: '',
+        isTrial: false,
+        trialEndDate: '',
+        lastUsedDate: format(new Date(), 'yyyy-MM-dd'),
+        usageFrequency: 'daily',
+        annualPrice: undefined,
         status: 'active',
         websiteUrl: '',
         notes: '',
@@ -79,6 +104,35 @@ export const SubscriptionModal: React.FC = () => {
       setShowPasswordSection(false);
     }
   }, [editingSubscription, isAddEditModalOpen, defaultCurrency, paymentMethods, user, suggestedAccountEmails]);
+
+  // Handle Name input change with instant smart autofill detection
+  const handleNameChange = (newName: string) => {
+    const matched = findCatalogService(newName);
+    
+    if (!editingSubscription && matched) {
+      setFormData(prev => ({
+        ...prev,
+        name: newName,
+        category: matched.category,
+        amount: prev.amount && prev.amount > 0 ? prev.amount : matched.defaultAmount,
+        currency: matched.currency || prev.currency || defaultCurrency,
+        billingCycle: matched.billingCycle,
+        cancelUrl: matched.cancelUrl || prev.cancelUrl,
+        websiteUrl: matched.websiteUrl || prev.websiteUrl,
+        color: matched.color,
+        notes: matched.description || prev.notes,
+        annualPrice: matched.annualPrice
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, name: newName }));
+    }
+
+    if (newName.trim().length >= 2) {
+      setAutofillSuggestions(searchCatalog(newName, 4));
+    } else {
+      setAutofillSuggestions([]);
+    }
+  };
 
   const handleSelectPreset = (preset: CatalogService) => {
     setFormData(prev => ({
@@ -90,10 +144,13 @@ export const SubscriptionModal: React.FC = () => {
       category: preset.category,
       color: preset.color,
       websiteUrl: preset.websiteUrl,
+      cancelUrl: preset.cancelUrl || prev.cancelUrl,
+      annualPrice: preset.annualPrice,
       notes: preset.description || prev.notes,
       nextBillingDate: getNextRenewalDate(new Date().toISOString(), preset.billingCycle)
     }));
     setServiceSearch('');
+    setAutofillSuggestions([]);
   };
 
   const handleGeneratePassword = () => {
@@ -181,19 +238,65 @@ export const SubscriptionModal: React.FC = () => {
 
         <Form onSubmit={handleSubmit}>
           <Row className="g-3">
+            {/* Service Name with Instant Autofill */}
             <Col xs={12} md={7}>
               <Form.Group>
-                <Form.Label>Service name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="e.g. Netflix, Spotify, ChatGPT Plus"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  autoFocus
-                />
+                <Form.Label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Service name or website URL</span>
+                  <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 500 }}>
+                    ⚡ Instant Autofill active
+                  </span>
+                </Form.Label>
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    placeholder="e.g. Netflix, Spotify, or paste chatgpt.com"
+                    value={formData.name || ''}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                  {autofillSuggestions.length > 0 && !editingSubscription && (
+                    <div
+                      className="position-absolute w-100 shadow-dropdown p-1.5"
+                      style={{
+                        top: '100%',
+                        left: 0,
+                        zIndex: 10,
+                        background: 'var(--bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        marginTop: 2
+                      }}
+                    >
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', padding: '2px 8px', fontWeight: 600 }}>
+                        Autofill Suggestions:
+                      </div>
+                      {autofillSuggestions.map(s => (
+                        <div
+                          key={s.name}
+                          className="d-flex justify-content-between align-items-center p-2 rounded cursor-pointer"
+                          style={{ cursor: 'pointer', fontSize: 12.5 }}
+                          onClick={() => handleSelectPreset(s)}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div className="d-flex align-items-center gap-2">
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+                            <strong>{s.name}</strong>
+                            <span className="badge-tag badge-info-subtle" style={{ fontSize: 10.5 }}>{s.category}</span>
+                          </div>
+                          <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                            ${s.defaultAmount}/{s.billingCycle === 'monthly' ? 'mo' : 'yr'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </Form.Group>
             </Col>
+
             <Col xs={12} md={5}>
               <Form.Group>
                 <Form.Label>Category</Form.Label>
@@ -281,6 +384,83 @@ export const SubscriptionModal: React.FC = () => {
                     <option key={pm.id} value={pm.id}>{pm.name} ({pm.brand} •••• {pm.lastFour})</option>
                   ))}
                 </Form.Select>
+              </Form.Group>
+            </Col>
+
+            {/* Free Trial & Usage Health Section */}
+            <Col xs={12}>
+              <div className="section-panel p-3" style={{ background: 'var(--bg-subtle)' }}>
+                <Row className="g-3">
+                  <Col xs={12} sm={6}>
+                    <Form.Group>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <Form.Label className="mb-0" style={{ fontSize: 12, fontWeight: 600 }}>
+                          Free Trial Status
+                        </Form.Label>
+                        <Form.Check
+                          type="switch"
+                          id="trial-switch"
+                          label={<span style={{ fontSize: 11.5 }}>On Trial</span>}
+                          checked={Boolean(formData.isTrial)}
+                          onChange={(e) => setFormData({ ...formData, isTrial: e.target.checked })}
+                        />
+                      </div>
+                      {formData.isTrial && (
+                        <div className="mt-2">
+                          <Form.Label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Trial End Date</Form.Label>
+                          <Form.Control
+                            type="date"
+                            size="sm"
+                            value={formData.trialEndDate || formData.nextBillingDate || ''}
+                            onChange={(e) => setFormData({ ...formData, trialEndDate: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </Form.Group>
+                  </Col>
+
+                  <Col xs={12} sm={6}>
+                    <Form.Group>
+                      <Form.Label style={{ fontSize: 12, fontWeight: 600 }}>Usage Frequency (Dormant Detector)</Form.Label>
+                      <Form.Select
+                        size="sm"
+                        value={formData.usageFrequency || 'daily'}
+                        onChange={(e) => setFormData({ ...formData, usageFrequency: e.target.value as any })}
+                      >
+                        <option value="daily">Daily / High active</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="dormant">Rarely / Dormant (Flags savings)</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </div>
+            </Col>
+
+            {/* Direct 1-Click Cancellation Deep Link */}
+            <Col xs={12}>
+              <Form.Group>
+                <Form.Label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span>Direct 1-Click Cancellation / Billing Link</span>
+                  {formData.cancelUrl && (
+                    <a
+                      href={formData.cancelUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 11, color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <ExternalLink size={11} /> Test link
+                    </a>
+                  )}
+                </Form.Label>
+                <Form.Control
+                  type="url"
+                  placeholder="https://.../account/cancel or billing settings"
+                  value={formData.cancelUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, cancelUrl: e.target.value })}
+                  style={{ fontSize: 12.5 }}
+                />
               </Form.Group>
             </Col>
 
@@ -457,7 +637,7 @@ export const SubscriptionModal: React.FC = () => {
 
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Website / Cancellation URL</Form.Label>
+                <Form.Label>Website URL</Form.Label>
                 <Form.Control
                   type="url"
                   placeholder="https://..."

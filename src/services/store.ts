@@ -30,6 +30,8 @@ interface AppStore {
   isImportExportModalOpen: boolean;
   isPaymentMethodsModalOpen: boolean;
   isAuthModalOpen: boolean;
+  isCalendarSyncModalOpen: boolean;
+  isAutoSyncModalOpen: boolean;
 
   // Cloud Auth & Sync
   user: UserAccount | null;
@@ -42,6 +44,8 @@ interface AppStore {
   syncWithCloud: () => Promise<void>;
   signOut: () => Promise<void>;
   setAuthModalOpen: (open: boolean) => void;
+  setCalendarSyncModalOpen: (open: boolean) => void;
+  setAutoSyncModalOpen: (open: boolean) => void;
 
   addSubscription: (sub: Omit<Subscription, 'id' | 'createdAt'>) => void;
   updateSubscription: (id: string, updates: Partial<Subscription>) => void;
@@ -85,7 +89,7 @@ const LEGACY_STORAGE_CURRENCY_KEY = 'subtrack_currency';
 // Default to Tech & AI Engineer preset if first time opening
 const DEFAULT_PRESET = REAL_DATA_PRESETS[0];
 
-const INITIAL_SUBSCRIPTIONS: Subscription[] = DEFAULT_PRESET.subscriptions.map((s, i) => ({
+const INITIAL_SUBSCRIPTIONS: Subscription[] = DEFAULT_PRESET.subscriptions.map((s: any, i: number) => ({
   ...s,
   id: `sub_${Date.now()}_${i}`,
   createdAt: new Date().toISOString()
@@ -175,6 +179,8 @@ export const useAppStore = create<AppStore>((set, get) => {
     isImportExportModalOpen: false,
     isPaymentMethodsModalOpen: false,
     isAuthModalOpen: false,
+    isCalendarSyncModalOpen: false,
+    isAutoSyncModalOpen: false,
 
     user: initialUser,
     syncStatus: initialUser ? 'synced' : 'local',
@@ -193,6 +199,8 @@ export const useAppStore = create<AppStore>((set, get) => {
     setSyncStatus: (syncStatus) => set({ syncStatus }),
 
     setAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
+    setCalendarSyncModalOpen: (isCalendarSyncModalOpen) => set({ isCalendarSyncModalOpen }),
+    setAutoSyncModalOpen: (isAutoSyncModalOpen) => set({ isAutoSyncModalOpen }),
 
     signOut: async () => {
       await cloudSync.signOut();
@@ -386,7 +394,7 @@ export const useAppStore = create<AppStore>((set, get) => {
       const preset = REAL_DATA_PRESETS.find(p => p.id === presetId);
       if (!preset) return;
 
-      const newSubs: Subscription[] = preset.subscriptions.map((s, i) => ({
+      const newSubs: Subscription[] = preset.subscriptions.map((s: any, i: number) => ({
         ...s,
         id: `sub_${Date.now()}_${i}`,
         createdAt: new Date().toISOString()

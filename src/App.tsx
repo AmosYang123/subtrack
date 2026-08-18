@@ -6,6 +6,7 @@ import { UpcomingAlertBanner } from './components/UpcomingAlertBanner';
 import { SubscriptionFilters } from './components/SubscriptionFilters';
 import { SubscriptionTable } from './components/SubscriptionTable';
 import { SubscriptionGrid } from './components/SubscriptionGrid';
+import { MoneySaverView } from './components/MoneySaverView';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { RenewalsCalendar } from './components/RenewalsCalendar';
 import { SubscriptionModal } from './components/SubscriptionModal';
@@ -14,14 +15,37 @@ import { ImportExportModal } from './components/ImportExportModal';
 import { PaymentMethodsModal } from './components/PaymentMethodsModal';
 import { PaymentMethodsView } from './components/PaymentMethodsView';
 import { AuthModal } from './components/AuthModal';
+import { CalendarSyncModal } from './components/CalendarSyncModal';
+import { AutoSyncModal } from './components/AutoSyncModal';
+import { listenForAutoSyncCaptures } from './utils/autoSyncConnector';
 
 const App: React.FC = () => {
-  const { activeTab, filters, theme } = useAppStore();
+  const { activeTab, filters, theme, addSubscription } = useAppStore();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
     document.body.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
   }, [theme]);
+
+  // Listen for Zero-Touch background subscription captures from bookmarklet / extensions
+  useEffect(() => {
+    const cleanup = listenForAutoSyncCaptures((payload) => {
+      addSubscription({
+        name: payload.serviceName,
+        amount: payload.amount || 9.99,
+        currency: payload.currency || 'USD',
+        billingCycle: payload.billingCycle || 'monthly',
+        nextBillingDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        category: payload.category || 'Software',
+        cancelUrl: payload.cancelUrl,
+        websiteUrl: payload.url,
+        notes: `Auto-captured via Zero-Touch background sync (${payload.source})`,
+        status: 'active'
+      });
+    });
+
+    return () => cleanup();
+  }, [addSubscription]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -43,6 +67,8 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'optimizer' && <MoneySaverView />}
+
         {activeTab === 'analytics' && <AnalyticsDashboard />}
 
         {activeTab === 'calendar' && <RenewalsCalendar />}
@@ -56,6 +82,8 @@ const App: React.FC = () => {
       <ImportExportModal />
       <PaymentMethodsModal />
       <AuthModal />
+      <CalendarSyncModal />
+      <AutoSyncModal />
     </div>
   );
 };

@@ -2,6 +2,7 @@ export interface CatalogService {
   name: string;
   category: string;
   defaultAmount: number;
+  annualPrice?: number; // Optional annual tier price (for savings calculations)
   currency: string;
   billingCycle: 'monthly' | 'yearly';
   color: string;
@@ -656,3 +657,48 @@ export const CURRENCIES = [
   { code: 'SEK', symbol: 'kr', name: 'Swedish Krona' },
   { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 ];
+
+/**
+ * Intelligent matcher that finds a catalog service given a name, partial keyword, or pasted URL.
+ */
+export function findCatalogService(input: string): CatalogService | null {
+  if (!input || !input.trim()) return null;
+  const clean = input.trim().toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '');
+
+  // Exact name match
+  const exact = POPULAR_SERVICES.find(s => s.name.toLowerCase() === clean);
+  if (exact) return exact;
+
+  // Exact alias or domain match
+  const aliasMatch = POPULAR_SERVICES.find(s =>
+    s.aliases.some(a => a.toLowerCase() === clean || clean.includes(a.toLowerCase()))
+  );
+  if (aliasMatch) return aliasMatch;
+
+  // Starts-with name match
+  const prefixMatch = POPULAR_SERVICES.find(s => s.name.toLowerCase().startsWith(clean));
+  if (prefixMatch) return prefixMatch;
+
+  // Word match
+  const wordMatch = POPULAR_SERVICES.find(s => s.name.toLowerCase().includes(clean));
+  if (wordMatch) return wordMatch;
+
+  return null;
+}
+
+/**
+ * Returns prioritized suggestions matching a query
+ */
+export function searchCatalog(query: string, limit = 8): CatalogService[] {
+  if (!query || !query.trim()) return POPULAR_SERVICES.slice(0, limit);
+  const q = query.trim().toLowerCase();
+
+  const results = POPULAR_SERVICES.filter(s => {
+    const nameMatch = s.name.toLowerCase().includes(q);
+    const catMatch = s.category.toLowerCase().includes(q);
+    const aliasMatch = s.aliases.some(a => a.toLowerCase().includes(q));
+    return nameMatch || catMatch || aliasMatch;
+  });
+
+  return results.slice(0, limit);
+}

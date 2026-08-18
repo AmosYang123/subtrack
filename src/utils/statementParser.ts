@@ -1,15 +1,58 @@
-// Bank and credit card statement parser
-// Supports CSV/TSV exports from Chase, Amex, BofA, Apple Card, Revolut, Monzo, PayPal, Stripe, etc.
+// 100% Client-Side Safe Bank and Credit Card Statement Parser
+// Zero Cloud Exposure: All parsing runs exclusively in browser memory.
+// Supports CSV, TSV, and Statement exports from Chase, Amex, BofA, Apple Card, Revolut, Monzo, PayPal, Stripe, etc.
 
-import { StatementParsedItem, BillingCycle, Subscription } from '../types';
+import { BillingCycle, Subscription } from '../types';
 import { POPULAR_SERVICES } from './catalog';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, parseISO } from 'date-fns';
+
+export interface StatementParsedItem {
+  id: string;
+  rawMerchant: string;
+  matchedService: string;
+  amount: number;
+  currency: string;
+  billingCycle: BillingCycle;
+  category: string;
+  transactionDate: string;
+  frequencyScore: number; // 0 to 100
+  cardLastFour?: string;
+  cancelUrl?: string;
+  websiteUrl?: string;
+  selected?: boolean;
+  alreadyTracked?: boolean;
+}
 
 interface ParsedRow {
   date: string;
   description: string;
   amount: number;
+  cardLastFour?: string;
 }
+
+// Patterns for non-subscription one-off expenses (groceries, gas, dining, transfers)
+const EXCLUSION_PATTERNS = [
+  /whole foods/i,
+  /trader joe/i,
+  /kroger/i,
+  /safeway/i,
+  /costco/i,
+  /starbucks/i,
+  /mcdonald/i,
+  /chipotle/i,
+  /chevron/i,
+  /shell oil/i,
+  /exxon/i,
+  /bp gas/i,
+  /atm withdrawal/i,
+  /zelle to/i,
+  /venmo payment to/i,
+  /transfer to/i,
+  /check #/i,
+  /uber eats/i,
+  /doordash/i,
+  /grubhub/i
+];
 
 export function parseBankStatementCSV(
   csvContent: string,
@@ -29,6 +72,9 @@ export function parseBankStatementCSV(
   let amountIdx = headers.findIndex(
     h => h.includes('amount') || h.includes('debit') || h.includes('total') || h.includes('sum') || h.includes('cost')
   );
+  let cardIdx = headers.findIndex(
+    h => h.includes('card') || h.includes('account') || h.includes('last4') || h.includes('number')
+  );
 
   // Fallbacks if no explicit headers found
   if (dateIdx === -1) dateIdx = 0;
@@ -44,32 +90,51 @@ export function parseBankStatementCSV(
     const rawDesc = cols[descIdx] || '';
     const rawAmt = (cols[amountIdx] || '').replace(/[$€£¥₹,\s]/g, '');
     const rawDate = cols[dateIdx] || '';
+    const rawCard = cardIdx >= 0 ? cols[cardIdx] : '';
 
     const numAmt = Math.abs(parseFloat(rawAmt));
     if (!rawDesc || isNaN(numAmt) || numAmt <= 0) continue;
 
+    // Check exclusion patterns
+    if (EXCLUSION_PATTERNS.some(p => p.test(rawDesc))) {
+      continue;
+    }
+
+    const cardLastFour = extractCardLastFour(rawDesc) || extractCardLastFour(rawCard);
+
     rawRows.push({
       date: normalizeDate(rawDate),
       description: rawDesc,
-      amount: numAmt
+      amount: numAmt,
+      cardLastFour
     });
   }
 
-  // 2. Identify potential recurring subscription transactions
+  // 2. Group by merchant to detect recurring patterns
+  const merchantGroups: Record<string, ParsedRow[]> = {};
+
+  rawRows.forEach(row => {
+    const matched = matchService(row.description);
+    const key = matched ? matched.name.toLowerCase() : cleanMerchantName(row.description).toLowerCase();
+    if (!merchantGroups[key]) merchantGroups[key] = [];
+    merchantGroups[key].push(row);
+  });
+
   const results: StatementParsedItem[] = [];
-  const processedKeys = new Set<string>();
 
-  for (const row of rawRows) {
-    const matchedService = matchService(row.description);
-    const serviceKey = matchedService ? matchedService.name.toLowerCase() : row.description.toLowerCase().trim();
+  for (const [key, rows] of Object.entries(merchantGroups)) {
+    const latestRow = rows[rows.length - 1];
+    const matchedService = matchService(latestRow.description);
 
-    if (processedKeys.has(serviceKey)) continue;
-    processedKeys.add(serviceKey);
-
-    const name = matchedService ? matchedService.name : cleanMerchantName(row.description);
-    const category = matchedService ? matchedService.category : guessCategory(row.description);
-    const cycle: BillingCycle = matchedService ? matchedService.billingCycle : (row.amount > 60 ? 'yearly' : 'monthly');
-    const confidence = matchedService ? 95 : 65;
+    const name = matchedService ? matchedService.name : cleanMerchantName(latestRow.description);
+    const category = matchedService ? matchedService.category : guessCategory(latestRow.description);
+    const cycle: BillingCycle = matchedService ? matchedService.billingCycle : (latestRow.amount > 60 ? 'yearly' : 'monthly');
+    
+    // Calculate recurring confidence
+    let confidence = matchedService ? 95 : 60;
+    if (rows.length >= 2) {
+      confidence = 100; // Strong recurring pattern found in statement history
+    }
 
     const alreadyTracked = existingSubs.some(
       s => s.name.toLowerCase() === name.toLowerCase() && s.status !== 'cancelled'
@@ -77,14 +142,17 @@ export function parseBankStatementCSV(
 
     results.push({
       id: `stmt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      rawMerchant: row.description,
+      rawMerchant: latestRow.description,
       matchedService: name,
-      amount: row.amount,
+      amount: latestRow.amount,
       currency: 'USD',
       billingCycle: cycle,
       category,
-      transactionDate: row.date,
+      transactionDate: latestRow.date,
       frequencyScore: confidence,
+      cardLastFour: latestRow.cardLastFour,
+      cancelUrl: matchedService?.cancelUrl,
+      websiteUrl: matchedService?.websiteUrl,
       selected: !alreadyTracked,
       alreadyTracked
     });
@@ -94,25 +162,26 @@ export function parseBankStatementCSV(
   return results.sort((a, b) => b.frequencyScore - a.frequencyScore);
 }
 
+function extractCardLastFour(text: string): string | undefined {
+  if (!text) return undefined;
+  const match = text.match(/(?:card|ending in|acct|\*{4}|x{4}|••••)\s*(\d{4})/i) || text.match(/\b\d{4}\b/);
+  return match ? match[1] || match[0] : undefined;
+}
+
 function parseCSVLine(text: string): string[] {
   const result: string[] = [];
   let inQuotes = false;
   let cur = '';
 
   for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (char === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
+    const c = text[i];
+    if (c === '"' || c === "'") {
+      inQuotes = !inQuotes;
+    } else if ((c === ',' || c === '\t' || c === ';') && !inQuotes) {
       result.push(cur.trim());
       cur = '';
     } else {
-      cur += char;
+      cur += c;
     }
   }
   result.push(cur.trim());
@@ -121,7 +190,7 @@ function parseCSVLine(text: string): string[] {
 
 function normalizeDate(raw: string): string {
   try {
-    const d = new Date(raw);
+    const d = new Date(raw.trim());
     if (!isNaN(d.getTime())) {
       return format(d, 'yyyy-MM-dd');
     }
@@ -132,42 +201,38 @@ function normalizeDate(raw: string): string {
 }
 
 function matchService(desc: string) {
-  const lower = desc.toLowerCase();
-  for (const svc of POPULAR_SERVICES) {
-    if (svc.aliases.some(alias => lower.includes(alias.toLowerCase()))) {
-      return svc;
-    }
-  }
-  return null;
+  const d = desc.toLowerCase();
+  return POPULAR_SERVICES.find(s => {
+    if (d.includes(s.name.toLowerCase())) return true;
+    return s.aliases.some(alias => d.includes(alias.toLowerCase()));
+  });
 }
 
 function cleanMerchantName(desc: string): string {
-  // Remove common card transaction noise like "POS DEBIT", "RECURRING", "PAYPAL *", "SQ *", "TST*", numbers, etc.
-  let cleaned = desc
-    .replace(/^(pos debit|recurring debit|ach debit|card purchase|chk card|debit purchase|purchase authorized on \d\d\/\d\d)\s*/i, '')
-    .replace(/(paypal \*|sq \*|tst\*|amzn mktp|apple\.com\/bill|google \*|stripe \*)/i, '')
-    .replace(/\b(inc|llc|corp|co|ltd|com|net|org|bill|payment|services|sub|subscription)\b/gi, '')
-    .replace(/[0-9#\*\-_]{3,}/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  // Capitalize words
-  if (!cleaned) cleaned = desc;
-  return cleaned
+  return desc
+    .replace(/^POS DEBIT\s+/i, '')
+    .replace(/^PURCHASE AUTHORIZED ON\s+/i, '')
+    .replace(/^PAYPAL \*/i, '')
+    .replace(/^APL\*/i, '')
+    .replace(/^GOOGLE \*/i, '')
+    .replace(/\s+(INC|LLC|CORP|CO|LTD)\.?$/i, '')
+    .replace(/[\d\*\#\.\-_]{4,}/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
     .split(' ')
-    .slice(0, 3)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 }
 
 function guessCategory(desc: string): string {
-  const lower = desc.toLowerCase();
-  if (lower.includes('music') || lower.includes('audio') || lower.includes('sound')) return 'Music';
-  if (lower.includes('tv') || lower.includes('stream') || lower.includes('video') || lower.includes('movie')) return 'Streaming';
-  if (lower.includes('cloud') || lower.includes('host') || lower.includes('server') || lower.includes('aws') || lower.includes('storage')) return 'Cloud';
-  if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('athletic')) return 'Fitness';
-  if (lower.includes('game') || lower.includes('play') || lower.includes('xbox') || lower.includes('nintendo')) return 'Gaming';
-  if (lower.includes('news') || lower.includes('times') || lower.includes('post') || lower.includes('journal')) return 'News';
-  if (lower.includes('learn') || lower.includes('edu') || lower.includes('academy') || lower.includes('course')) return 'Education';
+  const d = desc.toLowerCase();
+  if (/music|spotify|apple music|tidal|pandora|soundcloud/i.test(d)) return 'Music';
+  if (/stream|netflix|hulu|disney|hbo|prime video|youtube/i.test(d)) return 'Streaming';
+  if (/cloud|aws|gcp|azure|digitalocean|heroku|vercel/i.test(d)) return 'Cloud';
+  if (/game|playstation|xbox|nintendo|steam|ea play/i.test(d)) return 'Gaming';
+  if (/gym|fitness|fitbit|strava|peloton|whoop/i.test(d)) return 'Fitness';
+  if (/ai|openai|anthropic|cursor|github|adobe|figma|notion/i.test(d)) return 'Software';
+  if (/mobile|internet|att|verizon|t-mobile|comcast|spectrum/i.test(d)) return 'Utilities';
+  if (/news|nyt|wsj|bloomberg|the economist|medium/i.test(d)) return 'News';
   return 'Software';
 }

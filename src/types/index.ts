@@ -27,6 +27,12 @@ export interface Subscription {
   accountEmail?: string; // Email/account used for this service
   accountPassword?: string; // Optional stored/generated password
   passwordHint?: string; // Optional reminder hint
+  cancelUrl?: string; // Direct 1-click link to cancellation/billing settings
+  isTrial?: boolean; // Is currently on free trial
+  trialEndDate?: string; // YYYY-MM-DD
+  lastUsedDate?: string; // YYYY-MM-DD
+  usageFrequency?: 'daily' | 'weekly' | 'monthly' | 'dormant';
+  annualPrice?: number; // Optional annual tier price if available
   notes?: string;
   status: SubscriptionStatus;
   websiteUrl?: string;
@@ -57,6 +63,9 @@ export interface EmailScanItem {
   detectedCycle: BillingCycle;
   detectedCategory: string;
   confidence: number; // 0 - 100
+  cardLastFour?: string;
+  cancelUrl?: string;
+  websiteUrl?: string;
   alreadyTracked: boolean;
   selected?: boolean;
 }
@@ -70,7 +79,10 @@ export interface StatementParsedItem {
   billingCycle: BillingCycle;
   category: string;
   transactionDate: string;
-  frequencyScore: number; // confidence that it's recurring
+  frequencyScore: number; // 0 to 100
+  cardLastFour?: string;
+  cancelUrl?: string;
+  websiteUrl?: string;
   selected?: boolean;
   alreadyTracked?: boolean;
 }
@@ -80,6 +92,14 @@ export interface PresetProfile {
   title: string;
   description: string;
   badge: string;
+  currency: string;
+  subscriptions: Omit<Subscription, 'id' | 'createdAt'>[];
+  paymentMethods: PaymentMethod[];
+}
+
+export interface ImportExportData {
+  version: number;
+  exportedAt: string;
   currency: string;
   subscriptions: Omit<Subscription, 'id' | 'createdAt'>[];
   paymentMethods: PaymentMethod[];
@@ -98,7 +118,7 @@ export interface FilterState {
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export type ActiveTab = 'subscriptions' | 'analytics' | 'calendar' | 'payments';
+export type ActiveTab = 'subscriptions' | 'optimizer' | 'analytics' | 'calendar' | 'payments';
 
 export interface SpendingMetrics {
   totalMonthly: number;

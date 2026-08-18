@@ -1,4 +1,4 @@
-import { EmailScanItem, Subscription, BillingCycle } from '../types';
+import { Subscription, BillingCycle, EmailScanItem } from '../types';
 import { POPULAR_SERVICES } from './catalog';
 import { addMonths, format } from 'date-fns';
 
@@ -95,6 +95,11 @@ export const MOCK_EMAILS: RawEmail[] = SAMPLE_REAL_RECEIPTS.map((r, i) => ({
   date: new Date(Date.now() - 86400000 * (i + 1) * 2).toISOString()
 }));
 
+function extractCardNumber(text: string): string | undefined {
+  const match = text.match(/(?:card|ending in|acct|\.{3}|\*{3,4}|••••)\s*(\d{4})/i) || text.match(/\b\d{4}\b/);
+  return match ? match[1] || match[0] : undefined;
+}
+
 /**
  * Parses raw text from a pasted invoice, receipt or email body and returns a detected scan item.
  */
@@ -109,23 +114,27 @@ export function parseReceiptText(rawText: string, existingSubs: Subscription[] =
   let defaultAmount = 0;
   let detectedCycle: BillingCycle = 'monthly';
   let confidence = 50;
+  let cancelUrl: string | undefined;
+  let websiteUrl: string | undefined;
 
-  let bestMatch: { service: (typeof POPULAR_SERVICES)[0]; alias: string } | null = null;
+  let bestMatch: (typeof POPULAR_SERVICES)[0] | null = null;
   for (const service of POPULAR_SERVICES) {
     for (const alias of service.aliases) {
       if (textToScan.includes(alias.toLowerCase())) {
-        if (!bestMatch || alias.length > bestMatch.alias.length) {
-          bestMatch = { service, alias };
+        if (!bestMatch || alias.length > (bestMatch.aliases[0]?.length || 0)) {
+          bestMatch = service;
         }
       }
     }
   }
 
   if (bestMatch) {
-    detectedService = bestMatch.service.name;
-    detectedCategory = bestMatch.service.category;
-    defaultAmount = bestMatch.service.defaultAmount;
-    detectedCycle = bestMatch.service.billingCycle;
+    detectedService = bestMatch.name;
+    detectedCategory = bestMatch.category;
+    defaultAmount = bestMatch.defaultAmount;
+    detectedCycle = bestMatch.billingCycle;
+    cancelUrl = bestMatch.cancelUrl;
+    websiteUrl = bestMatch.websiteUrl;
     confidence += 35;
   }
 
@@ -182,6 +191,8 @@ export function parseReceiptText(rawText: string, existingSubs: Subscription[] =
     if (!detectedService) detectedService = 'Custom Receipt Service';
   }
 
+  const cardLastFour = extractCardNumber(rawText);
+
   const alreadyTracked = existingSubs.some(
     s => s.name.toLowerCase() === detectedService.toLowerCase() && s.status !== 'cancelled'
   );
@@ -198,6 +209,9 @@ export function parseReceiptText(rawText: string, existingSubs: Subscription[] =
     detectedCycle,
     detectedCategory,
     confidence: Math.min(confidence, 99),
+    cardLastFour,
+    cancelUrl,
+    websiteUrl,
     alreadyTracked,
     selected: !alreadyTracked
   };
@@ -213,23 +227,27 @@ export function parseInboxEmails(emails: RawEmail[], existingSubs: Subscription[
     let defaultAmount = 0;
     let detectedCycle: BillingCycle = 'monthly';
     let confidence = 50;
+    let cancelUrl: string | undefined;
+    let websiteUrl: string | undefined;
 
-    let bestMatch: { service: (typeof POPULAR_SERVICES)[0]; alias: string } | null = null;
+    let bestMatch: (typeof POPULAR_SERVICES)[0] | null = null;
     for (const service of POPULAR_SERVICES) {
       for (const alias of service.aliases) {
         if (textToScan.includes(alias.toLowerCase())) {
-          if (!bestMatch || alias.length > bestMatch.alias.length) {
-            bestMatch = { service, alias };
+          if (!bestMatch || alias.length > (bestMatch.aliases[0]?.length || 0)) {
+            bestMatch = service;
           }
         }
       }
     }
 
     if (bestMatch) {
-      detectedService = bestMatch.service.name;
-      detectedCategory = bestMatch.service.category;
-      defaultAmount = bestMatch.service.defaultAmount;
-      detectedCycle = bestMatch.service.billingCycle;
+      detectedService = bestMatch.name;
+      detectedCategory = bestMatch.category;
+      defaultAmount = bestMatch.defaultAmount;
+      detectedCycle = bestMatch.billingCycle;
+      cancelUrl = bestMatch.cancelUrl;
+      websiteUrl = bestMatch.websiteUrl;
       confidence += 30;
     }
 
@@ -280,6 +298,8 @@ export function parseInboxEmails(emails: RawEmail[], existingSubs: Subscription[
       detectedCycle = 'monthly';
     }
 
+    const cardLastFour = extractCardNumber(`${email.subject} ${email.body}`);
+
     const alreadyTracked = existingSubs.some(
       s => s.name.toLowerCase() === detectedService.toLowerCase() && s.status !== 'cancelled'
     );
@@ -296,6 +316,9 @@ export function parseInboxEmails(emails: RawEmail[], existingSubs: Subscription[
       detectedCycle,
       detectedCategory,
       confidence: Math.min(confidence, 98),
+      cardLastFour,
+      cancelUrl,
+      websiteUrl,
       alreadyTracked,
       selected: !alreadyTracked
     };
@@ -312,6 +335,8 @@ export function convertScanItemToSubscription(item: EmailScanItem, paymentMethod
     nextBillingDate: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
     category: item.detectedCategory || 'Other',
     paymentMethodId: paymentMethodId || 'pm_default',
+    cancelUrl: item.cancelUrl,
+    websiteUrl: item.websiteUrl,
     notes: `Discovered from receipt: "${item.subject}"`,
     status: 'active',
     createdAt: new Date().toISOString()
