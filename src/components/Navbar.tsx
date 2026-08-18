@@ -43,7 +43,7 @@ export const Navbar: React.FC = () => {
   return (
     <nav className="app-nav">
       <span className="app-nav-brand" onClick={() => setActiveTab('subscriptions')}>
-        SubTrack
+        SubTrax
       </span>
 
       <div className="app-nav-tabs">

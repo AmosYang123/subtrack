@@ -47,12 +47,12 @@ export const ImportExportModal: React.FC = () => {
 
   const handleExportCSV = () => {
     const csvData = exportSubscriptionsToCSV(subscriptions);
-    downloadFile(csvData, `subtrack_subscriptions_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    downloadFile(csvData, `subtrax_subscriptions_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
   };
 
   const handleExportJSON = () => {
     const jsonData = exportSubscriptionsToJSON(subscriptions);
-    downloadFile(jsonData, `subtrack_backup_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+    downloadFile(jsonData, `subtrax_backup_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
   };
 
   const handleStatementUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,7 +300,7 @@ export const ImportExportModal: React.FC = () => {
                 Import from bank / card export CSV
               </div>
               <p style={{ color: 'var(--text-muted)', fontSize: 12.5, margin: 0 }}>
-                Upload an exported CSV from Chase, Amex, Bank of America, Apple Card, Revolut, Monzo, PayPal, or Stripe. SubTrack will automatically identify recurring subscriptions.
+                Upload an exported CSV from Chase, Amex, Bank of America, Apple Card, Revolut, Monzo, PayPal, or Stripe. SubTrax will automatically identify recurring subscriptions.
               </p>
             </div>
 

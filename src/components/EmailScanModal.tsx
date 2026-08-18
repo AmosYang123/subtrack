@@ -216,7 +216,7 @@ export const EmailScanModal: React.FC = () => {
                       <span className="badge-tag">{parsedPastedItem.detectedCategory}</span>
                       <span className="badge-tag badge-success-subtle">{parsedPastedItem.confidence}% match</span>
                       {parsedPastedItem.alreadyTracked && (
-                        <span className="badge-tag badge-info-subtle">Already in SubTrack</span>
+                        <span className="badge-tag badge-info-subtle">Already in SubTrax</span>
                       )}
                     </div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
@@ -314,7 +314,7 @@ export const EmailScanModal: React.FC = () => {
                       Found {scanResults.length} recurring charges in inbox
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                      Select the services you want to track in SubTrack.
+                      Select the services you want to track in SubTrax.
                     </div>
                   </div>
                   <div className="d-flex gap-1">
