@@ -17,7 +17,7 @@ import { PaymentMethodsView } from './components/PaymentMethodsView';
 import { AuthModal } from './components/AuthModal';
 import { CalendarSyncModal } from './components/CalendarSyncModal';
 import { AutoSyncModal } from './components/AutoSyncModal';
-import { listenForAutoSyncCaptures } from './utils/autoSyncConnector';
+import { listenForAutoSyncCaptures, parseAutoAddUrlQuery } from './utils/autoSyncConnector';
 
 const App: React.FC = () => {
   const { activeTab, filters, theme, addSubscription } = useAppStore();
@@ -27,9 +27,9 @@ const App: React.FC = () => {
     document.body.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
   }, [theme]);
 
-  // Listen for Zero-Touch background subscription captures from bookmarklet / extensions
+  // Handle 1-click Auto-Sync url query or background capture
   useEffect(() => {
-    const cleanup = listenForAutoSyncCaptures((payload) => {
+    const handleAdd = (payload: any) => {
       addSubscription({
         name: payload.serviceName,
         amount: payload.amount || 9.99,
@@ -42,8 +42,16 @@ const App: React.FC = () => {
         notes: `Auto-captured via Zero-Touch background sync (${payload.source})`,
         status: 'active'
       });
-    });
+    };
 
+    // 1. Check URL query (?auto_add=...)
+    const urlPayload = parseAutoAddUrlQuery();
+    if (urlPayload) {
+      handleAdd(urlPayload);
+    }
+
+    // 2. Listen for same-window / local captures
+    const cleanup = listenForAutoSyncCaptures(handleAdd);
     return () => cleanup();
   }, [addSubscription]);
 

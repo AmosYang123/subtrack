@@ -105,30 +105,36 @@ export const SubscriptionModal: React.FC = () => {
     }
   }, [editingSubscription, isAddEditModalOpen, defaultCurrency, paymentMethods, user, suggestedAccountEmails]);
 
-  // Handle Name input change with instant smart autofill detection
+  // Handle Name input change with smart autofill suggestions without greedy prefix mutation
   const handleNameChange = (newName: string) => {
-    const matched = findCatalogService(newName);
-    
-    if (!editingSubscription && matched) {
-      setFormData(prev => ({
-        ...prev,
-        name: newName,
-        category: matched.category,
-        amount: prev.amount && prev.amount > 0 ? prev.amount : matched.defaultAmount,
-        currency: matched.currency || prev.currency || defaultCurrency,
-        billingCycle: matched.billingCycle,
-        cancelUrl: matched.cancelUrl || prev.cancelUrl,
-        websiteUrl: matched.websiteUrl || prev.websiteUrl,
-        color: matched.color,
-        notes: matched.description || prev.notes,
-        annualPrice: matched.annualPrice
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, name: newName }));
-    }
+    setFormData(prev => ({ ...prev, name: newName }));
 
     if (newName.trim().length >= 2) {
-      setAutofillSuggestions(searchCatalog(newName, 4));
+      const suggestions = searchCatalog(newName, 4);
+      setAutofillSuggestions(suggestions);
+
+      // Only auto-populate metadata on exact name or exact alias match (e.g. pasted URL or completed name)
+      if (!editingSubscription) {
+        const exact = POPULAR_SERVICES.find(
+          s => s.name.toLowerCase() === newName.trim().toLowerCase() ||
+               s.aliases.some(a => a.toLowerCase() === newName.trim().toLowerCase())
+        );
+        if (exact) {
+          setFormData(prev => ({
+            ...prev,
+            name: exact.name,
+            category: exact.category,
+            amount: prev.amount && prev.amount > 0 ? prev.amount : exact.defaultAmount,
+            currency: exact.currency || prev.currency || defaultCurrency,
+            billingCycle: exact.billingCycle,
+            cancelUrl: exact.cancelUrl || prev.cancelUrl,
+            websiteUrl: exact.websiteUrl || prev.websiteUrl,
+            color: exact.color,
+            notes: exact.description || prev.notes,
+            annualPrice: exact.annualPrice
+          }));
+        }
+      }
     } else {
       setAutofillSuggestions([]);
     }

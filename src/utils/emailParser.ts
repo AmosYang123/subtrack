@@ -96,8 +96,10 @@ export const MOCK_EMAILS: RawEmail[] = SAMPLE_REAL_RECEIPTS.map((r, i) => ({
 }));
 
 function extractCardNumber(text: string): string | undefined {
-  const match = text.match(/(?:card|ending in|acct|\.{3}|\*{3,4}|••••)\s*(\d{4})/i) || text.match(/\b\d{4}\b/);
-  return match ? match[1] || match[0] : undefined;
+  if (!text) return undefined;
+  // Require explicit card keywords to prevent falsely capturing years (e.g. 2026) or store numbers
+  const match = text.match(/(?:card|ending\s+in|acct|visa|mastercard|amex|discover|\.{3,4}|\*{3,4}|••••)\s*#?\s*(\d{4})\b/i);
+  return match ? match[1] : undefined;
 }
 
 /**

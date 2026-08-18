@@ -164,8 +164,9 @@ export function parseBankStatementCSV(
 
 function extractCardLastFour(text: string): string | undefined {
   if (!text) return undefined;
-  const match = text.match(/(?:card|ending in|acct|\*{4}|x{4}|••••)\s*(\d{4})/i) || text.match(/\b\d{4}\b/);
-  return match ? match[1] || match[0] : undefined;
+  // Require explicit card-related indicators to avoid matching years (2026) or store IDs
+  const match = text.match(/(?:card|ending\s+in|acct|visa|mastercard|amex|discover|\*{3,4}|x{3,4}|••••|\.{3,4})\s*#?\s*(\d{4})\b/i);
+  return match ? match[1] : undefined;
 }
 
 function parseCSVLine(text: string): string[] {
@@ -175,7 +176,8 @@ function parseCSVLine(text: string): string[] {
 
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
-    if (c === '"' || c === "'") {
+    // Only standard double-quote (") is a CSV delimiter to support merchant apostrophes (e.g. Trader Joe's)
+    if (c === '"') {
       inQuotes = !inQuotes;
     } else if ((c === ',' || c === '\t' || c === ';') && !inQuotes) {
       result.push(cur.trim());

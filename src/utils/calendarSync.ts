@@ -1,5 +1,5 @@
 import { Subscription } from '../types';
-import { format, parseISO, addMonths, addYears } from 'date-fns';
+import { format, parseISO, addDays, addMonths, addYears } from 'date-fns';
 
 export interface CalendarExportOptions {
   reminderDays?: number; // e.g. 3 days before
@@ -142,7 +142,15 @@ export function downloadICalendarFile(
  */
 export function getGoogleCalendarAddUrl(sub: Subscription): string {
   const nextDateStr = sub.nextBillingDate || format(new Date(), 'yyyy-MM-dd');
-  const cleanDate = nextDateStr.replace(/-/g, '');
+  const startDate = nextDateStr.replace(/-/g, '');
+  let nextDay: Date;
+  try {
+    nextDay = addDays(parseISO(nextDateStr), 1);
+  } catch {
+    nextDay = addDays(new Date(), 1);
+  }
+  const endDate = format(nextDay, 'yyyyMMdd');
+
   const title = encodeURIComponent(`[Subtrax] ${sub.name} Renewal (${sub.currency || 'USD'} ${sub.amount})`);
   
   let details = `Subscription: ${sub.name}\nAmount: ${sub.currency || 'USD'} ${sub.amount}/${sub.billingCycle}\nCategory: ${sub.category}`;
@@ -153,7 +161,7 @@ export function getGoogleCalendarAddUrl(sub: Subscription): string {
   const recurrence = sub.billingCycle === 'monthly' ? 'RRULE:FREQ=MONTHLY' : sub.billingCycle === 'yearly' ? 'RRULE:FREQ=YEARLY' : '';
   const encodedRecur = recurrence ? `&recur=${encodeURIComponent(recurrence)}` : '';
 
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${cleanDate}/${cleanDate}&details=${encodedDetails}${encodedRecur}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}/${endDate}&details=${encodedDetails}${encodedRecur}`;
 }
 
 /**

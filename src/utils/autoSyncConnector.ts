@@ -24,6 +24,8 @@ export interface AutoCapturedPayload {
  * Returns the executable JavaScript bookmarklet code for 1-click subscription capture from any webpage.
  */
 export function getSubtraxBookmarkletCode(): string {
+  const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://subtrax.vercel.app';
+
   const code = `
     javascript:(function(){
       try {
@@ -46,14 +48,7 @@ export function getSubtraxBookmarkletCode(): string {
           timestamp: new Date().toISOString()
         };
         
-        if ('BroadcastChannel' in window) {
-          var bc = new BroadcastChannel('${AUTOSYNC_CHANNEL_NAME}');
-          bc.postMessage(payload);
-          bc.close();
-        }
-        
-        // Open or focus Subtrax with prefill query
-        var subtraxUrl = 'https://subtrax.vercel.app/?auto_add=' + encodeURIComponent(JSON.stringify(payload));
+        var subtraxUrl = '${currentHost}/?auto_add=' + encodeURIComponent(JSON.stringify(payload));
         window.open(subtraxUrl, '_blank');
       } catch(e) {
         alert('Subtrax Auto-Sync: ' + e.message);
@@ -62,6 +57,32 @@ export function getSubtraxBookmarkletCode(): string {
   `.replace(/\s+/g, ' ').trim();
 
   return code;
+}
+
+/**
+ * Parses and consumes the ?auto_add= parameter from the current URL if present.
+ * Cleans the URL without triggering a page reload.
+ */
+export function parseAutoAddUrlQuery(): AutoCapturedPayload | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const autoAddRaw = params.get('auto_add');
+    if (!autoAddRaw) return null;
+
+    const payload = JSON.parse(decodeURIComponent(autoAddRaw)) as AutoCapturedPayload;
+
+    // Clean URL query parameter cleanly
+    const url = new URL(window.location.href);
+    url.searchParams.delete('auto_add');
+    window.history.replaceState({}, document.title, url.toString());
+
+    return payload;
+  } catch (e) {
+    console.warn('Failed to parse auto_add query parameter:', e);
+    return null;
+  }
 }
 
 /**
