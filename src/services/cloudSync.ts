@@ -1,5 +1,13 @@
 import { Subscription, PaymentMethod, UserAccount, CloudSyncStatus } from '../types';
 import { hashPassword, generateSalt, generateSecureUUID } from '../utils/security';
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  subscriptionToDbRow,
+  dbRowToSubscription,
+  paymentMethodToDbRow,
+  dbRowToPaymentMethod
+} from './supabase';
 
 const AUTH_USER_KEY = 'subtrax_auth_user_v1';
 const USERS_REGISTRY_KEY = 'subtrax_user_registry_v1';
@@ -42,9 +50,6 @@ function saveUserRegistry(registry: Record<string, UserRegistryEntry>): void {
   }
 }
 
-/**
- * Returns a collision-free, cryptographically secure user ID mapped uniquely to the user's email.
- */
 export function getUserIdForEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
   const registry = getUserRegistry();
@@ -56,6 +61,7 @@ export function getUserIdForEmail(email: string): string {
 
 class CloudSyncService {
   private channel: BroadcastChannel | null = null;
+  private supabaseRealtimeChannel: any = null;
   private syncListeners: ((status: CloudSyncStatus) => void)[] = [];
   private dataListeners: ((payload: CloudPayload) => void)[] = [];
 
@@ -69,7 +75,6 @@ class CloudSyncService {
 
           if (event.data && event.data.type === 'DATA_UPDATED') {
             const incomingPayload = event.data.payload as CloudPayload;
-            // Verify user ID matches active authenticated session to prevent cross-account pollution
             if (incomingPayload && incomingPayload.userId === currentUser.id) {
               this.notifyDataListeners(incomingPayload);
             }
@@ -105,8 +110,44 @@ class CloudSyncService {
     }
 
     const normalized = email.trim().toLowerCase();
-    const registry = getUserRegistry();
+    const supabase = getSupabaseClient();
 
+    // 1. Supabase Cloud Auth if configured
+    if (supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: normalized,
+        password,
+        options: {
+          data: {
+            name: name?.trim() || normalized.split('@')[0]
+          }
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.user) {
+        throw new Error('Failed to create account. Please try again.');
+      }
+
+      const user: UserAccount = {
+        id: data.user.id,
+        email: data.user.email || normalized,
+        name: data.user.user_metadata?.name || name?.trim() || normalized.split('@')[0],
+        createdAt: data.user.created_at || new Date().toISOString(),
+        lastSyncedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      this.broadcastAuthChange(user);
+      this.initSupabaseRealtime(user.id);
+      return user;
+    }
+
+    // 2. Local Vault fallback
+    const registry = getUserRegistry();
     if (registry[normalized]) {
       throw new Error('An account with this email already exists. Please sign in instead.');
     }
@@ -146,11 +187,42 @@ class CloudSyncService {
     }
 
     const normalized = email.trim().toLowerCase();
+    const supabase = getSupabaseClient();
+
+    // 1. Supabase Cloud Auth if configured
+    if (supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalized,
+        password
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.user) {
+        throw new Error('No user returned from authentication.');
+      }
+
+      const user: UserAccount = {
+        id: data.user.id,
+        email: data.user.email || normalized,
+        name: data.user.user_metadata?.name || normalized.split('@')[0],
+        createdAt: data.user.created_at || new Date().toISOString(),
+        lastSyncedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      this.broadcastAuthChange(user);
+      this.initSupabaseRealtime(user.id);
+      return user;
+    }
+
+    // 2. Local Vault fallback
     const registry = getUserRegistry();
     const record = registry[normalized];
 
     if (!record) {
-      // If legacy registry or new user, guide them to sign up
       throw new Error('No account found for this email. Please create an account.');
     }
 
@@ -173,17 +245,73 @@ class CloudSyncService {
   }
 
   public async signOut(): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // Continue with local cleanup
+      }
+    }
+
+    if (this.supabaseRealtimeChannel) {
+      try {
+        this.supabaseRealtimeChannel.unsubscribe();
+        this.supabaseRealtimeChannel = null;
+      } catch {}
+    }
+
     localStorage.removeItem(AUTH_USER_KEY);
     this.broadcastAuthChange(null);
+  }
+
+  public async pullFromCloud(userId: string): Promise<CloudPayload | null> {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return this.getCloudVault(userId);
+    }
+
+    try {
+      this.notifyStatusListeners('syncing');
+
+      const [subsRes, paymentsRes] = await Promise.all([
+        supabase.from('subscriptions').select('*').eq('user_id', userId),
+        supabase.from('payment_methods').select('*').eq('user_id', userId)
+      ]);
+
+      if (subsRes.error) {
+        if (import.meta.env.DEV) console.warn('Supabase pull error:', subsRes.error);
+        return this.getCloudVault(userId);
+      }
+
+      const subscriptions = (subsRes.data || []).map(dbRowToSubscription);
+      const paymentMethods = (paymentsRes.data || []).map(dbRowToPaymentMethod);
+
+      const payload: CloudPayload = {
+        version: 1,
+        userId,
+        updatedAt: new Date().toISOString(),
+        subscriptions,
+        paymentMethods,
+        currency: 'USD'
+      };
+
+      // Also cache in local vault for offline availability
+      localStorage.setItem(`${CLOUD_VAULT_KEY_PREFIX}${userId}`, JSON.stringify(payload));
+      this.notifyStatusListeners('synced');
+      return payload;
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to pull from Supabase:', err);
+      this.notifyStatusListeners('offline');
+      return this.getCloudVault(userId);
+    }
   }
 
   public getCloudVault(userId: string): CloudPayload {
     try {
       const raw = localStorage.getItem(`${CLOUD_VAULT_KEY_PREFIX}${userId}`);
       if (raw) return JSON.parse(raw);
-    } catch {
-      // fallback
-    }
+    } catch {}
     return {
       version: 1,
       userId,
@@ -213,31 +341,116 @@ class CloudSyncService {
       currency
     };
 
+    // 1. Always update local vault for instant offline access
     try {
       localStorage.setItem(`${CLOUD_VAULT_KEY_PREFIX}${user.id}`, JSON.stringify(payload));
-      
-      // Broadcast sanitized payload (without account passwords) across tabs
-      if (this.channel) {
-        const broadcastSubs = subscriptions.map(s => {
-          const { accountPassword, ...rest } = s;
-          return rest as Subscription;
-        });
+    } catch {}
 
-        this.channel.postMessage({
-          type: 'DATA_UPDATED',
-          payload: {
-            ...payload,
-            subscriptions: broadcastSubs
-          }
-        });
+    // 2. Broadcast across local browser tabs
+    if (this.channel) {
+      const broadcastSubs = subscriptions.map((s) => {
+        const { accountPassword, ...rest } = s;
+        return rest as Subscription;
+      });
+
+      this.channel.postMessage({
+        type: 'DATA_UPDATED',
+        payload: {
+          ...payload,
+          subscriptions: broadcastSubs
+        }
+      });
+    }
+
+    // 3. Remote Supabase sync if connected
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const subRows = subscriptions.map(s => subscriptionToDbRow(s, user.id));
+        const pmRows = paymentMethods.map(pm => paymentMethodToDbRow(pm, user.id));
+
+        // Sync Subscriptions
+        if (subRows.length > 0) {
+          const { error: subErr } = await supabase.from('subscriptions').upsert(subRows);
+          if (subErr && import.meta.env.DEV) console.warn('Supabase upsert subs error:', subErr);
+        }
+
+        // Sync Payment Methods
+        if (pmRows.length > 0) {
+          const { error: pmErr } = await supabase.from('payment_methods').upsert(pmRows);
+          if (pmErr && import.meta.env.DEV) console.warn('Supabase upsert payments error:', pmErr);
+        }
+
+        this.notifyStatusListeners('synced');
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Supabase push error:', err);
+        this.notifyStatusListeners('offline');
       }
-
+    } else {
       this.notifyStatusListeners('synced');
-    } catch (e) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to sync to cloud:', e);
+    }
+  }
+
+  public async deleteSubscriptionRemote(id: string, userId: string): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (supabase && userId) {
+      try {
+        await supabase.from('subscriptions').delete().eq('id', id).eq('user_id', userId);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn('Supabase delete sub error:', err);
       }
-      this.notifyStatusListeners('offline');
+    }
+  }
+
+  public async deletePaymentMethodRemote(id: string, userId: string): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (supabase && userId) {
+      try {
+        await supabase.from('payment_methods').delete().eq('id', id).eq('user_id', userId);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn('Supabase delete payment error:', err);
+      }
+    }
+  }
+
+  public initSupabaseRealtime(userId: string) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !userId) return;
+
+    if (this.supabaseRealtimeChannel) {
+      try {
+        this.supabaseRealtimeChannel.unsubscribe();
+      } catch {}
+    }
+
+    try {
+      this.supabaseRealtimeChannel = supabase
+        .channel(`public:user:${userId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'subscriptions', filter: `user_id=eq.${userId}` },
+          async () => {
+            const updated = await this.pullFromCloud(userId);
+            if (updated) {
+              this.notifyDataListeners(updated);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'payment_methods', filter: `user_id=eq.${userId}` },
+          async () => {
+            const updated = await this.pullFromCloud(userId);
+            if (updated) {
+              this.notifyDataListeners(updated);
+            }
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn('Realtime subscription error:', err);
+      }
     }
   }
 
@@ -275,10 +488,6 @@ class CloudSyncService {
 
 export const cloudSync = new CloudSyncService();
 
-/**
- * Extracts a list of unique suggested emails from previous subscriptions and user account,
- * sorted by frequency of use.
- */
 export function getSuggestedAccountEmails(
   subscriptions: Subscription[],
   currentUser?: UserAccount | null
@@ -286,7 +495,7 @@ export function getSuggestedAccountEmails(
   const counts: Record<string, number> = {};
 
   if (currentUser?.email) {
-    counts[currentUser.email.toLowerCase()] = 100; // prioritize user's login email
+    counts[currentUser.email.toLowerCase()] = 100;
   }
 
   subscriptions.forEach((sub) => {

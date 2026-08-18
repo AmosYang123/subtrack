@@ -240,23 +240,24 @@ export const useAppStore = create<AppStore>((set, get) => {
 
       set({ syncStatus: 'syncing' });
       try {
-        const vault = cloudSync.getCloudVault(user.id);
+        const cloudData = await cloudSync.pullFromCloud(user.id);
         const localSubs = get().subscriptions;
         const localPayments = get().paymentMethods;
 
         let activeSubs: Subscription[];
         let activePayments: PaymentMethod[];
 
-        if (vault.subscriptions && vault.subscriptions.length > 0) {
-          // User has existing cloud vault: load their vault
-          activeSubs = vault.subscriptions;
-          activePayments = vault.paymentMethods && vault.paymentMethods.length > 0
-            ? vault.paymentMethods
+        if (cloudData && cloudData.subscriptions && cloudData.subscriptions.length > 0) {
+          // Loaded remote subscriptions from Supabase / cloud vault
+          activeSubs = cloudData.subscriptions;
+          activePayments = cloudData.paymentMethods && cloudData.paymentMethods.length > 0
+            ? cloudData.paymentMethods
             : localPayments;
         } else {
-          // New cloud vault: initialize with current local data
+          // New account or empty cloud: push current local state to cloud
           activeSubs = localSubs;
           activePayments = localPayments;
+          await cloudSync.pushToCloud(user, activeSubs, activePayments, get().currency);
         }
 
         persist(STORAGE_SUBS_KEY, activeSubs);
@@ -269,8 +270,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           suggestedAccountEmails: getSuggestedAccountEmails(activeSubs, user)
         });
 
-        // Ensure cloud vault is updated
-        await cloudSync.pushToCloud(user, activeSubs, activePayments, get().currency);
+        // Initialize Supabase realtime listener for this user
+        cloudSync.initSupabaseRealtime(user.id);
       } catch (e) {
         console.error('Sync failed:', e);
         set({ syncStatus: 'offline' });
@@ -330,10 +331,10 @@ export const useAppStore = create<AppStore>((set, get) => {
     },
 
     deleteSubscription: (id) => {
+      const user = get().user;
       const updated = get().subscriptions.filter(s => s.id !== id);
       persist(STORAGE_SUBS_KEY, updated);
 
-      const user = get().user;
       set({
         subscriptions: updated,
         suggestedAccountEmails: getSuggestedAccountEmails(updated, user)
@@ -341,6 +342,7 @@ export const useAppStore = create<AppStore>((set, get) => {
 
       if (user) {
         cloudSync.pushToCloud(user, updated, get().paymentMethods, get().currency);
+        cloudSync.deleteSubscriptionRemote(id, user.id);
       }
     },
 
@@ -439,13 +441,14 @@ export const useAppStore = create<AppStore>((set, get) => {
     },
 
     deletePaymentMethod: (id) => {
+      const user = get().user;
       const updated = get().paymentMethods.filter(m => m.id !== id);
       persist(STORAGE_PAYMENTS_KEY, updated);
       set({ paymentMethods: updated });
 
-      const user = get().user;
       if (user) {
         cloudSync.pushToCloud(user, get().subscriptions, updated, get().currency);
+        cloudSync.deletePaymentMethodRemote(id, user.id);
       }
     },
 
@@ -507,8 +510,12 @@ export const useStore = useAppStore;
 
 // Initial rate fetch & cloud sync listener
 if (typeof window !== 'undefined') {
-  setTimeout(() => {
+  setTimeout(async () => {
     useAppStore.getState().fetchRates();
+    const currentUser = useAppStore.getState().user;
+    if (currentUser) {
+      await useAppStore.getState().syncWithCloud();
+    }
   }, 100);
 
   cloudSync.onDataSync((payload) => {
