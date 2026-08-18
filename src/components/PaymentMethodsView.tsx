@@ -207,10 +207,10 @@ export const PaymentMethodsView: React.FC = () => {
                       gap: 12,
                       padding: '12px 14px',
                       borderRadius: 'var(--radius)',
-                      border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border)',
-                      backgroundColor: isSelected ? 'var(--primary-subtle, rgba(99, 102, 241, 0.08))' : 'var(--bg)',
+                      border: isSelected ? '1px solid var(--primary-border)' : '1px solid var(--border)',
+                      backgroundColor: isSelected ? 'var(--primary-bg)' : 'var(--bg)',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      transition: 'all var(--transition-fast)'
                     }}
                   >
                     <div className="d-flex align-items-center gap-3">

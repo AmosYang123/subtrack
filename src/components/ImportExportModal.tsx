@@ -204,32 +204,29 @@ export const ImportExportModal: React.FC = () => {
       </Modal.Header>
       <Modal.Body style={{ padding: '16px 20px' }}>
         {/* Navigation Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+        <div className="app-nav-tabs mb-3">
           <button
             type="button"
-            className={`btn-ghost ${activeTab === 'presets' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeTab === 'presets' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeTab === 'presets' ? 'active' : ''}`}
             onClick={() => setActiveTab('presets')}
           >
-            <Sparkles size={14} style={{ marginRight: 6 }} />
+            <Sparkles size={14} />
             <span>Real-world profiles</span>
           </button>
           <button
             type="button"
-            className={`btn-ghost ${activeTab === 'statement' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeTab === 'statement' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeTab === 'statement' ? 'active' : ''}`}
             onClick={() => setActiveTab('statement')}
           >
-            <CreditCard size={14} style={{ marginRight: 6 }} />
+            <CreditCard size={14} />
             <span>Bank statement CSV</span>
           </button>
           <button
             type="button"
-            className={`btn-ghost ${activeTab === 'backup' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeTab === 'backup' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeTab === 'backup' ? 'active' : ''}`}
             onClick={() => setActiveTab('backup')}
           >
-            <Layers size={14} style={{ marginRight: 6 }} />
+            <Layers size={14} />
             <span>Backup & restore</span>
           </button>
         </div>

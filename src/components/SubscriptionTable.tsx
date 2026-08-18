@@ -128,21 +128,25 @@ export const SubscriptionTable: React.FC = () => {
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{sub.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: 13.5 }}>{sub.name}</span>
                       {sub.isTrial && (
-                        <span className="badge-tag badge-danger-subtle" style={{ fontSize: 10 }}>
+                        <span className="badge-tag badge-danger-subtle">
                           Trial
                         </span>
                       )}
                       {sub.usageFrequency === 'dormant' && (
-                        <span className="badge-tag badge-warning-subtle" style={{ fontSize: 10 }}>
+                        <span className="badge-tag badge-warning-subtle">
                           Dormant
                         </span>
                       )}
                       {safeDirectUrl && (
-                        <a href={safeDirectUrl} target="_blank" rel="noopener noreferrer"
-                           style={{ color: 'var(--text-muted)' }}
-                           title="1-Click Manage / Cancel Plan">
+                        <a
+                          href={safeDirectUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="external-link-btn"
+                          title="1-Click Manage / Cancel Plan"
+                        >
                           <ExternalLink size={12} />
                         </a>
                       )}

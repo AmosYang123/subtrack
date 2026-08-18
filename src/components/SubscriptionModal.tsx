@@ -448,7 +448,7 @@ export const SubscriptionModal: React.FC = () => {
             {/* Direct 1-Click Cancellation Deep Link */}
             <Col xs={12}>
               <Form.Group>
-                <Form.Label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <Form.Label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                   <span>Direct 1-Click Cancellation / Billing Link</span>
                   {(() => {
                     const safeCancelUrl = getSafeExternalUrl(formData.cancelUrl);
@@ -457,9 +457,11 @@ export const SubscriptionModal: React.FC = () => {
                         href={safeCancelUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ fontSize: 11, color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                        className="d-inline-flex align-items-center gap-1"
+                        style={{ fontSize: 11.5, color: 'var(--primary)', textDecoration: 'none', fontWeight: 550 }}
                       >
-                        <ExternalLink size={11} /> Test link
+                        <ExternalLink size={11} />
+                        <span>Test link</span>
                       </a>
                     ) : null;
                   })()}
@@ -486,7 +488,7 @@ export const SubscriptionModal: React.FC = () => {
                     <button
                       type="button"
                       className="btn-ghost"
-                      style={{ fontSize: 11.5, padding: '2px 8px' }}
+                      style={{ fontSize: 11.5, padding: '2px 8px', height: 'auto' }}
                       onClick={() => setShowPasswordSection(true)}
                     >
                       <KeyRound size={12} />
@@ -534,10 +536,11 @@ export const SubscriptionModal: React.FC = () => {
                           className="btn-ghost"
                           style={{
                             fontSize: 11,
-                            padding: '2px 7px',
-                            background: formData.accountEmail === em ? 'var(--primary-subtle)' : 'var(--bg)',
-                            color: formData.accountEmail === em ? 'var(--primary)' : 'var(--text-secondary)',
-                            border: '1px solid var(--border)',
+                            padding: '2px 8px',
+                            height: 'auto',
+                            background: formData.accountEmail === em ? 'var(--primary-bg)' : 'var(--bg)',
+                            color: formData.accountEmail === em ? 'var(--primary-text)' : 'var(--text-secondary)',
+                            border: `1px solid ${formData.accountEmail === em ? 'var(--primary-border)' : 'var(--border)'}`,
                             borderRadius: 'var(--radius-sm)'
                           }}
                           onClick={() => setFormData({ ...formData, accountEmail: em })}
@@ -612,13 +615,13 @@ export const SubscriptionModal: React.FC = () => {
                         </Form.Group>
                       </Col>
 
-                      <Col xs={12} sm={4}>
+                      <Col xs={12} sm={4} className="d-flex flex-column justify-content-end">
                         <Form.Group>
-                          <Form.Label style={{ fontSize: 12 }}>Quick generator</Form.Label>
+                          <Form.Label style={{ fontSize: 12, visibility: 'hidden' }}>Action</Form.Label>
                           <button
                             type="button"
                             className="btn-subtle w-100"
-                            style={{ fontSize: 12, padding: '7px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            style={{ fontSize: 12, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                             onClick={handleGeneratePassword}
                           >
                             <Sparkles size={13} style={{ color: 'var(--primary)' }} />

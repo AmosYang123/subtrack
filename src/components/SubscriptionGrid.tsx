@@ -77,18 +77,18 @@ export const SubscriptionGrid: React.FC = () => {
                   <div className="d-flex align-items-center gap-1.5 flex-wrap">
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{sub.name}</span>
                     {sub.isTrial && (
-                      <span className="badge-tag badge-danger-subtle" style={{ fontSize: 9.5 }}>
+                      <span className="badge-tag badge-danger-subtle">
                         Trial
                       </span>
                     )}
                     {sub.usageFrequency === 'dormant' && (
-                      <span className="badge-tag badge-warning-subtle" style={{ fontSize: 9.5 }}>
+                      <span className="badge-tag badge-warning-subtle">
                         Dormant
                       </span>
                     )}
                   </div>
                   {sub.accountEmail && (
-                    <div style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 500, marginTop: 1 }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--primary)', fontWeight: 500, marginTop: 2 }}>
                       {sub.accountEmail}
                     </div>
                   )}

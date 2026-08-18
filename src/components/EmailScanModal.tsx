@@ -138,32 +138,29 @@ export const EmailScanModal: React.FC = () => {
       </Modal.Header>
       <Modal.Body style={{ padding: '16px 20px' }}>
         {/* Navigation Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+        <div className="app-nav-tabs mb-3">
           <button
             type="button"
-            className={`btn-ghost ${activeSubTab === 'paste' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeSubTab === 'paste' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeSubTab === 'paste' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('paste')}
           >
-            <FileText size={14} style={{ marginRight: 6 }} />
+            <FileText size={14} />
             <span>Paste receipt or invoice</span>
           </button>
           <button
             type="button"
-            className={`btn-ghost ${activeSubTab === 'samples' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeSubTab === 'samples' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeSubTab === 'samples' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('samples')}
           >
-            <Sparkles size={14} style={{ marginRight: 6 }} />
+            <Sparkles size={14} />
             <span>Sample real receipts</span>
           </button>
           <button
             type="button"
-            className={`btn-ghost ${activeSubTab === 'inbox' ? 'btn-subtle' : ''}`}
-            style={{ fontWeight: activeSubTab === 'inbox' ? 600 : 400, fontSize: 13 }}
+            className={`app-nav-tab ${activeSubTab === 'inbox' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('inbox')}
           >
-            <Mail size={14} style={{ marginRight: 6 }} />
+            <Mail size={14} />
             <span>Simulated inbox scan</span>
           </button>
         </div>
