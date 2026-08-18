@@ -71,9 +71,16 @@ interface AppStore {
 }
 
 const STORAGE_SUBS_KEY = 'subtrax_subscriptions_v3';
+const LEGACY_STORAGE_SUBS_KEY = 'subtrack_subscriptions_v3';
+
 const STORAGE_PAYMENTS_KEY = 'subtrax_payment_methods_v3';
+const LEGACY_STORAGE_PAYMENTS_KEY = 'subtrack_payment_methods_v3';
+
 const STORAGE_THEME_KEY = 'subtrax_theme';
+const LEGACY_STORAGE_THEME_KEY = 'subtrack_theme';
+
 const STORAGE_CURRENCY_KEY = 'subtrax_currency';
+const LEGACY_STORAGE_CURRENCY_KEY = 'subtrack_currency';
 
 // Default to Tech & AI Engineer preset if first time opening
 const DEFAULT_PRESET = REAL_DATA_PRESETS[0];
@@ -97,10 +104,35 @@ const DEFAULT_FILTERS: FilterState = {
   viewMode: 'table'
 };
 
-function loadStored<T>(key: string, fallback: T): T {
+// Safe loader with automatic migration from legacy subtrack keys
+function loadStoredWithMigration<T>(newKey: string, oldKey: string, fallback: T): T {
   try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : fallback;
+    const item = localStorage.getItem(newKey);
+    if (item) return JSON.parse(item);
+
+    const legacyItem = localStorage.getItem(oldKey);
+    if (legacyItem) {
+      const parsed = JSON.parse(legacyItem);
+      // Migrate forward
+      localStorage.setItem(newKey, legacyItem);
+      return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function loadStringWithMigration(newKey: string, oldKey: string, fallback: string): string {
+  try {
+    const val = localStorage.getItem(newKey);
+    if (val) return val;
+    const oldVal = localStorage.getItem(oldKey);
+    if (oldVal) {
+      localStorage.setItem(newKey, oldVal);
+      return oldVal;
+    }
+    return fallback;
   } catch {
     return fallback;
   }
@@ -115,14 +147,23 @@ function persist<T>(key: string, data: T): void {
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
-  const initialSubs = loadStored<Subscription[]>(STORAGE_SUBS_KEY, INITIAL_SUBSCRIPTIONS);
+  const initialSubs = loadStoredWithMigration<Subscription[]>(
+    STORAGE_SUBS_KEY,
+    LEGACY_STORAGE_SUBS_KEY,
+    INITIAL_SUBSCRIPTIONS
+  );
+  const initialPayments = loadStoredWithMigration<PaymentMethod[]>(
+    STORAGE_PAYMENTS_KEY,
+    LEGACY_STORAGE_PAYMENTS_KEY,
+    INITIAL_PAYMENT_METHODS
+  );
   const initialUser = cloudSync.getStoredUser();
 
   return {
     subscriptions: initialSubs,
-    paymentMethods: loadStored<PaymentMethod[]>(STORAGE_PAYMENTS_KEY, INITIAL_PAYMENT_METHODS),
-    theme: (localStorage.getItem(STORAGE_THEME_KEY) as ThemeMode) || 'light',
-    currency: localStorage.getItem(STORAGE_CURRENCY_KEY) || 'USD',
+    paymentMethods: initialPayments,
+    theme: (loadStringWithMigration(STORAGE_THEME_KEY, LEGACY_STORAGE_THEME_KEY, 'light') as ThemeMode),
+    currency: loadStringWithMigration(STORAGE_CURRENCY_KEY, LEGACY_STORAGE_CURRENCY_KEY, 'USD'),
     exchangeRates: FALLBACK_RATES,
     ratesLastUpdated: null,
     isRatesLoading: false,
@@ -142,8 +183,7 @@ export const useAppStore = create<AppStore>((set, get) => {
     setUser: (user) => {
       set({
         user,
-        syncStatus: user ? 'synced' : 'local',
-        suggestedAccountEmails: getSuggestedAccountEmails(get().subscriptions, user)
+        syncStatus: user ? 'synced' : 'local'
       });
       if (user) {
         get().syncWithCloud();
@@ -156,7 +196,19 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     signOut: async () => {
       await cloudSync.signOut();
-      set({ user: null, syncStatus: 'local' });
+      // Clean local workspace state on sign-out to prevent credential leakage
+      const resetSubs = [...INITIAL_SUBSCRIPTIONS];
+      const resetPayments = [...INITIAL_PAYMENT_METHODS];
+      persist(STORAGE_SUBS_KEY, resetSubs);
+      persist(STORAGE_PAYMENTS_KEY, resetPayments);
+
+      set({
+        user: null,
+        syncStatus: 'local',
+        subscriptions: resetSubs,
+        paymentMethods: resetPayments,
+        suggestedAccountEmails: getSuggestedAccountEmails(resetSubs, null)
+      });
     },
 
     syncWithCloud: async () => {
@@ -169,39 +221,33 @@ export const useAppStore = create<AppStore>((set, get) => {
         const localSubs = get().subscriptions;
         const localPayments = get().paymentMethods;
 
-        // Merge cloud & local (preferring whichever has items or merging unique IDs)
-        const mergedSubs = [...localSubs];
-        vault.subscriptions.forEach((cs) => {
-          const idx = mergedSubs.findIndex((s) => s.id === cs.id);
-          if (idx >= 0) {
-            mergedSubs[idx] = cs;
-          } else {
-            mergedSubs.push(cs);
-          }
-        });
+        let activeSubs: Subscription[];
+        let activePayments: PaymentMethod[];
 
-        const mergedPayments = [...localPayments];
-        vault.paymentMethods.forEach((cp) => {
-          const idx = mergedPayments.findIndex((p) => p.id === cp.id);
-          if (idx >= 0) {
-            mergedPayments[idx] = cp;
-          } else {
-            mergedPayments.push(cp);
-          }
-        });
+        if (vault.subscriptions && vault.subscriptions.length > 0) {
+          // User has existing cloud vault: load their vault
+          activeSubs = vault.subscriptions;
+          activePayments = vault.paymentMethods && vault.paymentMethods.length > 0
+            ? vault.paymentMethods
+            : localPayments;
+        } else {
+          // New cloud vault: initialize with current local data
+          activeSubs = localSubs;
+          activePayments = localPayments;
+        }
 
-        persist(STORAGE_SUBS_KEY, mergedSubs);
-        persist(STORAGE_PAYMENTS_KEY, mergedPayments);
+        persist(STORAGE_SUBS_KEY, activeSubs);
+        persist(STORAGE_PAYMENTS_KEY, activePayments);
 
         set({
-          subscriptions: mergedSubs,
-          paymentMethods: mergedPayments,
+          subscriptions: activeSubs,
+          paymentMethods: activePayments,
           syncStatus: 'synced',
-          suggestedAccountEmails: getSuggestedAccountEmails(mergedSubs, user)
+          suggestedAccountEmails: getSuggestedAccountEmails(activeSubs, user)
         });
 
-        // Push combined back to vault
-        await cloudSync.pushToCloud(user, mergedSubs, mergedPayments, get().currency);
+        // Ensure cloud vault is updated
+        await cloudSync.pushToCloud(user, activeSubs, activePayments, get().currency);
       } catch (e) {
         console.error('Sync failed:', e);
         set({ syncStatus: 'offline' });

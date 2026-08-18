@@ -13,6 +13,18 @@ export interface CloudPayload {
   currency: string;
 }
 
+// Generate a consistent, deterministic user ID from email for reliable account recovery
+export function getUserIdForEmail(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  const cleanPrefix = normalized.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'usr';
+  return `usr_${cleanPrefix}_${Math.abs(hash).toString(36)}`;
+}
+
 class CloudSyncService {
   private channel: BroadcastChannel | null = null;
   private syncListeners: ((status: CloudSyncStatus) => void)[] = [];
@@ -47,7 +59,6 @@ class CloudSyncService {
   }
 
   public async signUp(email: string, password: string, name?: string): Promise<UserAccount> {
-    // Basic validation
     if (!email || !email.includes('@')) {
       throw new Error('Please enter a valid email address.');
     }
@@ -55,9 +66,9 @@ class CloudSyncService {
       throw new Error('Password must be at least 6 characters.');
     }
 
-    // Generate user account
+    const userId = getUserIdForEmail(email);
     const user: UserAccount = {
-      id: `usr_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`,
+      id: userId,
       email: email.trim().toLowerCase(),
       name: name?.trim() || email.split('@')[0],
       createdAt: new Date().toISOString(),
@@ -77,20 +88,14 @@ class CloudSyncService {
       throw new Error('Please enter your password.');
     }
 
-    const existingUser = this.getStoredUser();
-    let user: UserAccount;
-
-    if (existingUser && existingUser.email.toLowerCase() === email.trim().toLowerCase()) {
-      user = { ...existingUser, lastSyncedAt: new Date().toISOString() };
-    } else {
-      user = {
-        id: `usr_${Math.random().toString(36).substring(2, 9)}`,
-        email: email.trim().toLowerCase(),
-        name: email.split('@')[0],
-        createdAt: new Date().toISOString(),
-        lastSyncedAt: new Date().toISOString()
-      };
-    }
+    const userId = getUserIdForEmail(email);
+    const user: UserAccount = {
+      id: userId,
+      email: email.trim().toLowerCase(),
+      name: email.split('@')[0],
+      createdAt: new Date().toISOString(),
+      lastSyncedAt: new Date().toISOString()
+    };
 
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
     this.broadcastAuthChange(user);
@@ -141,7 +146,7 @@ class CloudSyncService {
     try {
       localStorage.setItem(`${CLOUD_VAULT_KEY_PREFIX}${user.id}`, JSON.stringify(payload));
       
-      // Broadcast to other open tabs / instances
+      // Broadcast to other open tabs / windows
       if (this.channel) {
         this.channel.postMessage({
           type: 'DATA_UPDATED',
