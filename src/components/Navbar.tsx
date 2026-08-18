@@ -15,7 +15,8 @@ import {
   Cloud,
   CheckCircle2,
   Zap,
-  CalendarDays
+  CalendarDays,
+  Camera
 } from 'lucide-react';
 import { useAppStore } from '../services/store';
 import { CURRENCIES } from '../utils/catalog';
@@ -38,6 +39,7 @@ export const Navbar: React.FC = () => {
     setAuthModalOpen,
     setCalendarSyncModalOpen,
     setAutoSyncModalOpen,
+    setOnboardingModalOpen,
     user,
     syncStatus
   } = useAppStore();
@@ -94,8 +96,15 @@ export const Navbar: React.FC = () => {
             ))}
             <Dropdown.Divider />
             <Dropdown.Item
+              onClick={() => setOnboardingModalOpen(true)}
+              style={{ fontSize: 12.5, padding: '6px 14px', color: 'var(--primary)', fontWeight: 600 }}
+            >
+              <Camera size={13} style={{ marginRight: 6 }} />
+              <span>Smart Setup Wizard / Screenshot Scan...</span>
+            </Dropdown.Item>
+            <Dropdown.Item
               onClick={() => setImportExportModalOpen(true)}
-              style={{ fontSize: 12.5, padding: '6px 14px', color: 'var(--primary)' }}
+              style={{ fontSize: 12.5, padding: '6px 14px' }}
             >
               <FileSpreadsheet size={13} style={{ marginRight: 6 }} />
               <span>Import bank statement / CSV...</span>
@@ -190,6 +199,16 @@ export const Navbar: React.FC = () => {
               <span>Cloud Sync</span>
             </>
           )}
+        </button>
+
+        {/* Fast Setup Wizard */}
+        <button
+          className="btn-subtle d-flex align-items-center gap-1.5"
+          onClick={() => setOnboardingModalOpen(true)}
+          title="Fast setup via Screenshot Scan or Smart Preset Wizard"
+        >
+          <Camera size={14} style={{ color: 'var(--primary)' }} />
+          <span>Fast Setup</span>
         </button>
 
         {/* Data & Imports */}

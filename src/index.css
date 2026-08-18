@@ -869,6 +869,16 @@ button {
   background: var(--text-muted);
 }
 
+/* ==========================================================================
+   Onboarding Option Cards
+   ========================================================================== */
+
+.onboarding-option-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary) !important;
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.14) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -32,6 +32,7 @@ interface AppStore {
   isAuthModalOpen: boolean;
   isCalendarSyncModalOpen: boolean;
   isAutoSyncModalOpen: boolean;
+  isOnboardingModalOpen: boolean;
 
   // Cloud Auth & Sync
   user: UserAccount | null;
@@ -46,6 +47,7 @@ interface AppStore {
   setAuthModalOpen: (open: boolean) => void;
   setCalendarSyncModalOpen: (open: boolean) => void;
   setAutoSyncModalOpen: (open: boolean) => void;
+  setOnboardingModalOpen: (open: boolean) => void;
 
   addSubscription: (sub: Omit<Subscription, 'id' | 'createdAt'>) => void;
   updateSubscription: (id: string, updates: Partial<Subscription>) => void;
@@ -181,6 +183,7 @@ export const useAppStore = create<AppStore>((set, get) => {
     isAuthModalOpen: false,
     isCalendarSyncModalOpen: false,
     isAutoSyncModalOpen: false,
+    isOnboardingModalOpen: false,
 
     user: initialUser,
     syncStatus: initialUser ? 'synced' : 'local',
@@ -201,6 +204,7 @@ export const useAppStore = create<AppStore>((set, get) => {
     setAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
     setCalendarSyncModalOpen: (isCalendarSyncModalOpen) => set({ isCalendarSyncModalOpen }),
     setAutoSyncModalOpen: (isAutoSyncModalOpen) => set({ isAutoSyncModalOpen }),
+    setOnboardingModalOpen: (isOnboardingModalOpen) => set({ isOnboardingModalOpen }),
 
     signOut: async () => {
       await cloudSync.signOut();

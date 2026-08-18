@@ -17,6 +17,7 @@ import { PaymentMethodsView } from './components/PaymentMethodsView';
 import { AuthModal } from './components/AuthModal';
 import { CalendarSyncModal } from './components/CalendarSyncModal';
 import { AutoSyncModal } from './components/AutoSyncModal';
+import { OnboardingModal } from './components/OnboardingModal';
 import { listenForAutoSyncCaptures, parseAutoAddUrlQuery } from './utils/autoSyncConnector';
 
 const App: React.FC = () => {
@@ -92,6 +93,7 @@ const App: React.FC = () => {
       <AuthModal />
       <CalendarSyncModal />
       <AutoSyncModal />
+      <OnboardingModal />
     </div>
   );
 };
