@@ -315,16 +315,17 @@ export const SubscriptionModal: React.FC = () => {
                       </span>
                     )}
                   </Form.Label>
-                  <div className="position-relative">
+                  <div className="input-with-icon">
+                    <span className="input-icon-lead">
+                      <Mail size={14} />
+                    </span>
                     <Form.Control
                       type="email"
                       list="account-email-suggestions"
                       placeholder="e.g. user@gmail.com, work@company.com"
                       value={formData.accountEmail || ''}
                       onChange={(e) => setFormData({ ...formData, accountEmail: e.target.value })}
-                      style={{ paddingLeft: 32 }}
                     />
-                    <Mail size={13} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--text-muted)' }} />
                     <datalist id="account-email-suggestions">
                       {suggestedAccountEmails.map(em => (
                         <option key={em} value={em} />
@@ -372,17 +373,18 @@ export const SubscriptionModal: React.FC = () => {
                               </span>
                             )}
                           </Form.Label>
-                          <div className="position-relative">
+                          <div className="input-with-icon">
+                            <span className="input-icon-lead">
+                              <KeyRound size={14} />
+                            </span>
                             <Form.Control
                               type={showPassword ? 'text' : 'password'}
                               placeholder="Enter or generate strong password"
                               value={formData.accountPassword || ''}
                               onChange={(e) => setFormData({ ...formData, accountPassword: e.target.value })}
-                              style={{ paddingLeft: 32, paddingRight: 75, fontFamily: showPassword ? 'monospace' : 'inherit' }}
+                              style={{ paddingRight: 65, fontFamily: showPassword ? 'monospace' : 'inherit' }}
                             />
-                            <KeyRound size={13} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--text-muted)' }} />
-                            
-                            <div style={{ position: 'absolute', right: 6, top: 5, display: 'flex', gap: 2 }}>
+                            <span className="input-icon-trail" style={{ gap: 2 }}>
                               <button
                                 type="button"
                                 className="btn-ghost p-1"
@@ -401,7 +403,7 @@ export const SubscriptionModal: React.FC = () => {
                                   {copiedPassword ? <Check size={14} style={{ color: '#10b981' }} /> : <Copy size={14} />}
                                 </button>
                               )}
-                            </div>
+                            </span>
                           </div>
 
                           {/* Password Strength Indicator Bar */}

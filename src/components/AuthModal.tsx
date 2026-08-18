@@ -202,55 +202,61 @@ export const AuthModal: React.FC = () => {
                 {authTab === 'signup' && (
                   <Form.Group className="mb-2.5">
                     <Form.Label style={{ fontSize: 12 }}>Your Name (optional)</Form.Label>
-                    <div className="position-relative">
+                    <div className="input-with-icon">
+                      <span className="input-icon-lead">
+                        <User size={15} />
+                      </span>
                       <Form.Control
                         type="text"
                         placeholder="e.g. Alex"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        style={{ paddingLeft: 34 }}
                       />
-                      <User size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-muted)' }} />
                     </div>
                   </Form.Group>
                 )}
 
                 <Form.Group className="mb-2.5">
                   <Form.Label style={{ fontSize: 12 }}>Email address</Form.Label>
-                  <div className="position-relative">
+                  <div className="input-with-icon">
+                    <span className="input-icon-lead">
+                      <Mail size={15} />
+                    </span>
                     <Form.Control
                       type="email"
                       placeholder="name@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      style={{ paddingLeft: 34 }}
                     />
-                    <Mail size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-muted)' }} />
                   </div>
                 </Form.Group>
 
                 <Form.Group className="mb-3">
                   <Form.Label style={{ fontSize: 12 }}>Password</Form.Label>
-                  <div className="position-relative">
+                  <div className="input-with-icon">
+                    <span className="input-icon-lead">
+                      <Lock size={15} />
+                    </span>
                     <Form.Control
                       type={showPassword ? 'text' : 'password'}
                       placeholder={authTab === 'signup' ? 'At least 6 characters' : 'Enter password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      style={{ paddingLeft: 34, paddingRight: 36 }}
+                      style={{ paddingRight: 40 }}
                     />
-                    <Lock size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-muted)' }} />
-                    <button
-                      type="button"
-                      className="btn-ghost p-0"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: 'absolute', right: 10, top: 8, color: 'var(--text-muted)', height: 'auto' }}
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
+                    <span className="input-icon-trail">
+                      <button
+                        type="button"
+                        className="btn-ghost p-1"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ color: 'var(--text-muted)', height: 'auto', display: 'flex', alignItems: 'center' }}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </span>
                   </div>
                 </Form.Group>
 

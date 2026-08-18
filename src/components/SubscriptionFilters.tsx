@@ -11,14 +11,15 @@ export const SubscriptionFilters: React.FC = () => {
 
   return (
     <div className="filters-bar">
-      <div style={{ position: 'relative', flex: '0 0 220px' }}>
-        <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
+      <div className="input-with-icon" style={{ flex: '0 0 220px' }}>
+        <span className="input-icon-lead">
+          <Search size={14} />
+        </span>
         <Form.Control
           type="text"
-          placeholder="Search..."
+          placeholder="Search subscriptions..."
           value={filters.searchTerm}
           onChange={(e) => setFilters({ searchTerm: e.target.value })}
-          style={{ paddingLeft: 32 }}
         />
       </div>
 
