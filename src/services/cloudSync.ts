@@ -1,6 +1,7 @@
 import { Subscription, PaymentMethod, UserAccount, CloudSyncStatus } from '../types';
 
 const AUTH_USER_KEY = 'subtrax_auth_user_v1';
+const USERS_REGISTRY_KEY = 'subtrax_user_registry_v1';
 const CLOUD_VAULT_KEY_PREFIX = 'subtrax_cloud_vault_';
 const BROADCAST_CHANNEL_NAME = 'subtrax_sync_channel';
 
@@ -13,16 +14,35 @@ export interface CloudPayload {
   currency: string;
 }
 
-// Generate a consistent, deterministic user ID from email for reliable account recovery
+/**
+ * Returns a collision-free, persistent user ID mapped uniquely to the user's email.
+ * Uses a persistent registry with fallback to bijective URI/Base64 encoding.
+ */
 export function getUserIdForEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
-    hash |= 0;
+
+  try {
+    const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+    const registry: Record<string, string> = raw ? JSON.parse(raw) : {};
+    if (registry[normalized]) {
+      return registry[normalized];
+    }
+    const newId = `usr_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+    registry[normalized] = newId;
+    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(registry));
+    return newId;
+  } catch {
+    // Bijective, 100% collision-free URL-safe Base64 encoding
+    try {
+      const b64 = btoa(unescape(encodeURIComponent(normalized)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+      return `usr_${b64}`;
+    } catch {
+      return `usr_${encodeURIComponent(normalized).replace(/[^a-zA-Z0-9]/g, '_')}`;
+    }
   }
-  const cleanPrefix = normalized.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'usr';
-  return `usr_${cleanPrefix}_${Math.abs(hash).toString(36)}`;
 }
 
 class CloudSyncService {

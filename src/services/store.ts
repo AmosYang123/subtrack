@@ -196,17 +196,28 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     signOut: async () => {
       await cloudSync.signOut();
-      // Clean local workspace state on sign-out to prevent credential leakage
+      // Clean local workspace state on sign-out to prevent credential and preference leakage
       const resetSubs = [...INITIAL_SUBSCRIPTIONS];
       const resetPayments = [...INITIAL_PAYMENT_METHODS];
       persist(STORAGE_SUBS_KEY, resetSubs);
       persist(STORAGE_PAYMENTS_KEY, resetPayments);
+      localStorage.removeItem(STORAGE_THEME_KEY);
+      localStorage.removeItem(STORAGE_CURRENCY_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_THEME_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_CURRENCY_KEY);
+
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      document.body.className = 'theme-light';
 
       set({
         user: null,
         syncStatus: 'local',
         subscriptions: resetSubs,
         paymentMethods: resetPayments,
+        theme: 'light',
+        currency: 'USD',
+        filters: DEFAULT_FILTERS,
+        editingSubscription: null,
         suggestedAccountEmails: getSuggestedAccountEmails(resetSubs, null)
       });
     },
