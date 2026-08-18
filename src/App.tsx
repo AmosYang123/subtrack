@@ -12,6 +12,7 @@ import { SubscriptionModal } from './components/SubscriptionModal';
 import { EmailScanModal } from './components/EmailScanModal';
 import { ImportExportModal } from './components/ImportExportModal';
 import { PaymentMethodsModal } from './components/PaymentMethodsModal';
+import { PaymentMethodsView } from './components/PaymentMethodsView';
 
 const App: React.FC = () => {
   const { activeTab, filters, theme } = useAppStore();
@@ -45,18 +46,7 @@ const App: React.FC = () => {
 
         {activeTab === 'calendar' && <RenewalsCalendar />}
 
-        {activeTab === 'payments' && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>Payment methods</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                Cards linked to your subscriptions.
-              </p>
-            </div>
-            <SubscriptionFilters />
-            {filters.viewMode === 'table' ? <SubscriptionTable /> : <SubscriptionGrid />}
-          </div>
-        )}
+        {activeTab === 'payments' && <PaymentMethodsView />}
       </main>
 
       {/* Modals */}

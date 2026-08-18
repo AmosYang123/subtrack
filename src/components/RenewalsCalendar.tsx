@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../services/store';
 import {
   formatCurrency,
-  getDaysUntilRenewal
+  getDaysUntilRenewal,
+  isSubscriptionDueOnDate
 } from '../utils/calculator';
 import { CATEGORY_COLORS } from '../utils/catalog';
 import {
@@ -64,11 +65,7 @@ export const RenewalsCalendar: React.FC = () => {
 
             {daysInMonth.map(day => {
               const isToday = isSameDay(day, new Date());
-              const subsForDay = activeSubs.filter(sub => {
-                if (!sub.nextBillingDate) return false;
-                try { return isSameDay(parseISO(sub.nextBillingDate), day); }
-                catch { return false; }
-              });
+              const subsForDay = activeSubs.filter(sub => isSubscriptionDueOnDate(sub, day));
 
               return (
                 <div

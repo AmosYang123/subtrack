@@ -17,6 +17,7 @@ export const PaymentMethodsModal: React.FC = () => {
     paymentMethods,
     subscriptions,
     currency,
+    exchangeRates,
     addPaymentMethod,
     deletePaymentMethod,
     setDefaultPaymentMethod
@@ -51,7 +52,7 @@ export const PaymentMethodsModal: React.FC = () => {
   const getSpendingForCard = (pmId: string): number => {
     return subscriptions
       .filter(s => s.paymentMethodId === pmId && s.status === 'active')
-      .reduce((sum, s) => sum + getNormalizedMonthlyCost(s.amount, s.billingCycle), 0);
+      .reduce((sum, s) => sum + getNormalizedMonthlyCost(s.amount, s.billingCycle, s.currency || 'USD', currency, exchangeRates), 0);
   };
 
   return (

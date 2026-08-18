@@ -102,6 +102,48 @@ export function getNextRenewalDate(currentDateStr: string, cycle: BillingCycle):
   }
 }
 
+export function isSubscriptionDueOnDate(sub: Subscription, targetDate: Date): boolean {
+  if (sub.status !== 'active') return false;
+
+  const rawDate = sub.nextBillingDate || sub.firstBillingDate;
+  if (!rawDate) return false;
+
+  try {
+    const base = parseISO(rawDate);
+    if (isNaN(base.getTime())) return false;
+
+    // Direct match
+    if (
+      base.getFullYear() === targetDate.getFullYear() &&
+      base.getMonth() === targetDate.getMonth() &&
+      base.getDate() === targetDate.getDate()
+    ) {
+      return true;
+    }
+
+    const cycle = sub.billingCycle;
+    const daysInTargetMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+    const effectiveBaseDay = Math.min(base.getDate(), daysInTargetMonth);
+
+    switch (cycle) {
+      case 'weekly':
+        return targetDate.getDay() === base.getDay();
+      case 'monthly':
+        return targetDate.getDate() === effectiveBaseDay;
+      case 'quarterly': {
+        const monthDiff = Math.abs((targetDate.getFullYear() - base.getFullYear()) * 12 + (targetDate.getMonth() - base.getMonth()));
+        return monthDiff % 3 === 0 && targetDate.getDate() === effectiveBaseDay;
+      }
+      case 'yearly':
+        return targetDate.getMonth() === base.getMonth() && targetDate.getDate() === effectiveBaseDay;
+      default:
+        return targetDate.getDate() === effectiveBaseDay;
+    }
+  } catch {
+    return false;
+  }
+}
+
 export function calculateMetrics(
   subscriptions: Subscription[],
   targetCurrency: string = 'USD',

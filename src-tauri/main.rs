@@ -3,10 +3,21 @@
     windows_subsystem = "windows"
 )]
 
+mod models;
+
+use std::sync::Mutex;
 use tauri::Manager;
+use serde::{Deserialize, Serialize};
+use crate::models::{Subscription, CalendarEvent, SpendingSummary, PaymentMethod};
+
+#[derive(Default, Serialize, Deserialize, Clone)]
+struct AppState {
+    subscriptions: Vec<Subscription>,
+}
 
 fn main() {
     tauri::Builder::default()
+        .manage(Mutex::new(AppState::default()))
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
@@ -28,16 +39,6 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-// State management
-use serde::{Deserialize, Serialize};
-use std::sync::{Mutex, Arc};
-use crate::models::Subscription;
-
-#[derive(Default, Serialize, Deserialize, Clone)]
-struct AppState {
-    subscriptions: Vec<Subscription>,
 }
 
 #[tauri::command]
@@ -152,14 +153,14 @@ fn calculate_spending(state: tauri::State<'_, Mutex<AppState>>) -> Result<Spendi
 }
 
 #[tauri::command]
-fn add_payment_method(state: tauri::State<'_, Mutex<AppState>>, method: PaymentMethod) -> Result<(), String> {
+fn add_payment_method(_state: tauri::State<'_, Mutex<AppState>>, _method: PaymentMethod) -> Result<(), String> {
     // In a real app, this would securely store the payment method
     // For demo, we'll just accept it
     Ok(())
 }
 
 #[tauri::command]
-fn get_payment_methods(state: tauri::State<'_, Mutex<AppState>>) -> Result<Vec<PaymentMethod>, String> {
+fn get_payment_methods(_state: tauri::State<'_, Mutex<AppState>>) -> Result<Vec<PaymentMethod>, String> {
     // Mock payment methods
     Ok(vec![
         PaymentMethod {
@@ -177,42 +178,4 @@ fn get_payment_methods(state: tauri::State<'_, Mutex<AppState>>) -> Result<Vec<P
             expiration_year: 2024
         }
     ])
-}
-
-// Models
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Subscription {
-    pub id: String,
-    pub name: String,
-    pub amount: f64,
-    pub currency: String,
-    pub next_billing_date: String,
-    pub category: String,
-    pub payment_method: String,
-    pub notes: String,
-    pub active: bool
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CalendarEvent {
-    pub id: String,
-    pub title: String,
-    pub start: chrono::NaiveDateTime,
-    pub end: chrono::NaiveDateTime,
-    pub color: String
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SpendingSummary {
-    pub total_monthly: f64,
-    pub by_category: std::collections::HashMap<String, f64>
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PaymentMethod {
-    pub id: String,
-    pub last_four: String,
-    pub brand: String,
-    pub expiration_month: u32,
-    pub expiration_year: u32
 }
