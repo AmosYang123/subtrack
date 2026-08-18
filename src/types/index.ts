@@ -24,6 +24,9 @@ export interface Subscription {
   firstBillingDate?: string;
   category: string;
   paymentMethodId?: string;
+  accountEmail?: string; // Email/account used for this service
+  accountPassword?: string; // Optional stored/generated password
+  passwordHint?: string; // Optional reminder hint
   notes?: string;
   status: SubscriptionStatus;
   websiteUrl?: string;
@@ -108,3 +111,13 @@ export interface SpendingMetrics {
   highestExpenseSub?: Subscription;
   averageMonthly: number;
 }
+
+export interface UserAccount {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+  lastSyncedAt?: string;
+}
+
+export type CloudSyncStatus = 'synced' | 'syncing' | 'offline' | 'local';

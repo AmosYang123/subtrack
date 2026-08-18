@@ -11,7 +11,9 @@ import {
   Mail,
   FileSpreadsheet,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Cloud,
+  CheckCircle2
 } from 'lucide-react';
 import { useAppStore } from '../services/store';
 import { CURRENCIES } from '../utils/catalog';
@@ -30,7 +32,10 @@ export const Navbar: React.FC = () => {
     isRatesLoading,
     openAddModal,
     setEmailScanModalOpen,
-    setImportExportModalOpen
+    setImportExportModalOpen,
+    setAuthModalOpen,
+    user,
+    syncStatus
   } = useAppStore();
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -118,6 +123,48 @@ export const Navbar: React.FC = () => {
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+
+        {/* Cloud Sync & Account */}
+        <button
+          className={user ? "btn-ghost d-flex align-items-center gap-1.5" : "btn-subtle d-flex align-items-center gap-1.5"}
+          onClick={() => setAuthModalOpen(true)}
+          title={user ? `Signed in as ${user.email} (Click for multi-device sync)` : "Sign in to sync across laptop & phone"}
+          style={user ? { padding: '4px 8px' } : {}}
+        >
+          {user ? (
+            <>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--primary-subtle)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700
+                }}
+              >
+                {(user.name || user.email).charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: 12.5, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.name || user.email.split('@')[0]}
+              </span>
+              {syncStatus === 'syncing' ? (
+                <RefreshCw size={11} className="spin text-primary" />
+              ) : (
+                <CheckCircle2 size={12} style={{ color: '#10b981' }} />
+              )}
+            </>
+          ) : (
+            <>
+              <Cloud size={14} style={{ color: 'var(--primary)' }} />
+              <span>Cloud Sync</span>
+            </>
+          )}
         </button>
 
         {/* Data & Imports */}

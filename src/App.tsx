@@ -13,6 +13,7 @@ import { EmailScanModal } from './components/EmailScanModal';
 import { ImportExportModal } from './components/ImportExportModal';
 import { PaymentMethodsModal } from './components/PaymentMethodsModal';
 import { PaymentMethodsView } from './components/PaymentMethodsView';
+import { AuthModal } from './components/AuthModal';
 
 const App: React.FC = () => {
   const { activeTab, filters, theme } = useAppStore();
@@ -54,6 +55,7 @@ const App: React.FC = () => {
       <EmailScanModal />
       <ImportExportModal />
       <PaymentMethodsModal />
+      <AuthModal />
     </div>
   );
 };

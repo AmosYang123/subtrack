@@ -135,6 +135,16 @@ export const SubscriptionTable: React.FC = () => {
                         </a>
                       )}
                     </div>
+                    {sub.accountEmail && (
+                      <span style={{
+                        fontSize: 11,
+                        color: 'var(--primary)',
+                        fontWeight: 500,
+                        marginTop: 1
+                      }}>
+                        {sub.accountEmail}
+                      </span>
+                    )}
                     {sub.notes && (
                       <span style={{
                         fontSize: 12,

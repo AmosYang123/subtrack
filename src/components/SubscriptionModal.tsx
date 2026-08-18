@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Row, Col } from 'react-bootstrap';
+import {
+  KeyRound,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Mail,
+  ShieldCheck,
+  CreditCard
+} from 'lucide-react';
 import { useAppStore } from '../services/store';
 import { Subscription, BillingCycle, SubscriptionStatus } from '../types';
 import { POPULAR_SERVICES, CATEGORIES, CURRENCIES, CATEGORY_COLORS, CatalogService } from '../utils/catalog';
 import { getNextRenewalDate } from '../utils/calculator';
+import { generateStrongPassword, evaluatePasswordStrength } from '../utils/passwordGenerator';
 import { format } from 'date-fns';
 
 export const SubscriptionModal: React.FC = () => {
@@ -14,6 +26,8 @@ export const SubscriptionModal: React.FC = () => {
     addSubscription,
     updateSubscription,
     paymentMethods,
+    suggestedAccountEmails,
+    user,
     currency: defaultCurrency
   } = useAppStore();
 
@@ -25,6 +39,9 @@ export const SubscriptionModal: React.FC = () => {
     nextBillingDate: format(new Date(), 'yyyy-MM-dd'),
     category: 'Streaming',
     paymentMethodId: paymentMethods[0]?.id || 'pm_1',
+    accountEmail: '',
+    accountPassword: '',
+    passwordHint: '',
     status: 'active',
     websiteUrl: '',
     notes: '',
@@ -32,11 +49,15 @@ export const SubscriptionModal: React.FC = () => {
   });
 
   const [serviceSearch, setServiceSearch] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
 
   useEffect(() => {
     if (editingSubscription) {
       setFormData({ ...editingSubscription });
       setServiceSearch('');
+      setShowPasswordSection(Boolean(editingSubscription.accountPassword || editingSubscription.passwordHint));
     } else {
       setFormData({
         name: '',
@@ -46,14 +67,18 @@ export const SubscriptionModal: React.FC = () => {
         nextBillingDate: format(new Date(), 'yyyy-MM-dd'),
         category: 'Streaming',
         paymentMethodId: paymentMethods[0]?.id || 'pm_1',
+        accountEmail: user?.email || (suggestedAccountEmails[0] || ''),
+        accountPassword: '',
+        passwordHint: '',
         status: 'active',
         websiteUrl: '',
         notes: '',
         color: '#64748b'
       });
       setServiceSearch('');
+      setShowPasswordSection(false);
     }
-  }, [editingSubscription, isAddEditModalOpen, defaultCurrency, paymentMethods]);
+  }, [editingSubscription, isAddEditModalOpen, defaultCurrency, paymentMethods, user, suggestedAccountEmails]);
 
   const handleSelectPreset = (preset: CatalogService) => {
     setFormData(prev => ({
@@ -69,6 +94,20 @@ export const SubscriptionModal: React.FC = () => {
       nextBillingDate: getNextRenewalDate(new Date().toISOString(), preset.billingCycle)
     }));
     setServiceSearch('');
+  };
+
+  const handleGeneratePassword = () => {
+    const newPass = generateStrongPassword({ length: 16, includeSymbols: true });
+    setFormData(prev => ({ ...prev, accountPassword: newPass }));
+    setShowPassword(true);
+    setShowPasswordSection(true);
+  };
+
+  const handleCopyPassword = () => {
+    if (!formData.accountPassword) return;
+    navigator.clipboard.writeText(formData.accountPassword);
+    setCopiedPassword(true);
+    setTimeout(() => setCopiedPassword(false), 2000);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,6 +127,8 @@ export const SubscriptionModal: React.FC = () => {
         s.aliases.some(a => a.toLowerCase().includes(serviceSearch.toLowerCase()))
       ).slice(0, 10)
     : POPULAR_SERVICES.slice(0, 10);
+
+  const passwordStrength = evaluatePasswordStrength(formData.accountPassword || '');
 
   return (
     <Modal show={isAddEditModalOpen} onHide={closeAddEditModal} centered size="lg" backdrop="static">
@@ -241,6 +282,175 @@ export const SubscriptionModal: React.FC = () => {
                   ))}
                 </Form.Select>
               </Form.Group>
+            </Col>
+
+            {/* Account Credentials & Suggestions Section */}
+            <Col xs={12}>
+              <div className="section-panel" style={{ padding: '14px 16px', background: 'var(--bg-subtle)' }}>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="d-flex align-items-center gap-1.5" style={{ fontSize: 13, fontWeight: 650 }}>
+                    <ShieldCheck size={15} style={{ color: 'var(--primary)' }} />
+                    <span>Account Credentials & Autofill</span>
+                  </div>
+                  {!showPasswordSection && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ fontSize: 11.5, padding: '2px 8px' }}
+                      onClick={() => setShowPasswordSection(true)}
+                    >
+                      <KeyRound size={12} />
+                      <span>Add password & security</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Account Email with Suggestions */}
+                <Form.Group className="mb-2">
+                  <Form.Label style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Account Email / Login identifier</span>
+                    {suggestedAccountEmails.length > 0 && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                        {suggestedAccountEmails.length} saved email{suggestedAccountEmails.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </Form.Label>
+                  <div className="position-relative">
+                    <Form.Control
+                      type="email"
+                      list="account-email-suggestions"
+                      placeholder="e.g. user@gmail.com, work@company.com"
+                      value={formData.accountEmail || ''}
+                      onChange={(e) => setFormData({ ...formData, accountEmail: e.target.value })}
+                      style={{ paddingLeft: 32 }}
+                    />
+                    <Mail size={13} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--text-muted)' }} />
+                    <datalist id="account-email-suggestions">
+                      {suggestedAccountEmails.map(em => (
+                        <option key={em} value={em} />
+                      ))}
+                    </datalist>
+                  </div>
+
+                  {/* Email quick-select chips */}
+                  {suggestedAccountEmails.length > 0 && (
+                    <div className="d-flex flex-wrap gap-1.5 mt-1.5">
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>Suggested:</span>
+                      {suggestedAccountEmails.slice(0, 4).map(em => (
+                        <button
+                          key={em}
+                          type="button"
+                          className="btn-ghost"
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 7px',
+                            background: formData.accountEmail === em ? 'var(--primary-subtle)' : 'var(--bg)',
+                            color: formData.accountEmail === em ? 'var(--primary)' : 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          onClick={() => setFormData({ ...formData, accountEmail: em })}
+                        >
+                          {em}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </Form.Group>
+
+                {/* Password Generator & Storage */}
+                {showPasswordSection && (
+                  <div className="mt-3 pt-2.5 border-top border-border">
+                    <Row className="g-2">
+                      <Col xs={12} sm={8}>
+                        <Form.Group>
+                          <Form.Label style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Password / Key</span>
+                            {formData.accountPassword && (
+                              <span style={{ fontSize: 11, color: passwordStrength.color, fontWeight: 600 }}>
+                                Strength: {passwordStrength.label} ({passwordStrength.score}%)
+                              </span>
+                            )}
+                          </Form.Label>
+                          <div className="position-relative">
+                            <Form.Control
+                              type={showPassword ? 'text' : 'password'}
+                              placeholder="Enter or generate strong password"
+                              value={formData.accountPassword || ''}
+                              onChange={(e) => setFormData({ ...formData, accountPassword: e.target.value })}
+                              style={{ paddingLeft: 32, paddingRight: 75, fontFamily: showPassword ? 'monospace' : 'inherit' }}
+                            />
+                            <KeyRound size={13} style={{ position: 'absolute', left: 11, top: 11, color: 'var(--text-muted)' }} />
+                            
+                            <div style={{ position: 'absolute', right: 6, top: 5, display: 'flex', gap: 2 }}>
+                              <button
+                                type="button"
+                                className="btn-ghost p-1"
+                                onClick={() => setShowPassword(!showPassword)}
+                                title={showPassword ? 'Hide password' : 'Show password'}
+                              >
+                                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                              {formData.accountPassword && (
+                                <button
+                                  type="button"
+                                  className="btn-ghost p-1"
+                                  onClick={handleCopyPassword}
+                                  title="Copy password to clipboard"
+                                >
+                                  {copiedPassword ? <Check size={14} style={{ color: '#10b981' }} /> : <Copy size={14} />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Password Strength Indicator Bar */}
+                          {formData.accountPassword && (
+                            <div style={{ height: 3, width: '100%', background: 'var(--border)', borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${passwordStrength.score}%`,
+                                  background: passwordStrength.color,
+                                  transition: 'width 0.3s ease'
+                                }}
+                              />
+                            </div>
+                          )}
+                        </Form.Group>
+                      </Col>
+
+                      <Col xs={12} sm={4}>
+                        <Form.Group>
+                          <Form.Label style={{ fontSize: 12 }}>Quick generator</Form.Label>
+                          <button
+                            type="button"
+                            className="btn-subtle w-100"
+                            style={{ fontSize: 12, padding: '7px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            onClick={handleGeneratePassword}
+                          >
+                            <Sparkles size={13} style={{ color: 'var(--primary)' }} />
+                            <span>Generate 16-char</span>
+                          </button>
+                        </Form.Group>
+                      </Col>
+
+                      <Col xs={12}>
+                        <Form.Group>
+                          <Form.Label style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Password hint / Recovery info (optional)</Form.Label>
+                          <Form.Control
+                            type="text"
+                            placeholder="e.g. 2FA via Authy, backup code in 1Password"
+                            value={formData.passwordHint || ''}
+                            onChange={(e) => setFormData({ ...formData, passwordHint: e.target.value })}
+                            style={{ fontSize: 12 }}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </div>
+                )}
+              </div>
             </Col>
 
             <Col xs={12}>

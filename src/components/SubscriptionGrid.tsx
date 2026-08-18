@@ -73,6 +73,11 @@ export const SubscriptionGrid: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{sub.name}</div>
+                  {sub.accountEmail && (
+                    <div style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 500, marginTop: 1 }}>
+                      {sub.accountEmail}
+                    </div>
+                  )}
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                     <span className="cat-dot" style={{ background: categoryColor }} />
                     {sub.category}
