@@ -18,6 +18,7 @@ import { AuthModal } from './components/AuthModal';
 import { CalendarSyncModal } from './components/CalendarSyncModal';
 import { AutoSyncModal } from './components/AutoSyncModal';
 import { OnboardingModal } from './components/OnboardingModal';
+import { LocationCurrencyPrompt } from './components/LocationCurrencyPrompt';
 import { listenForAutoSyncCaptures, parseAutoAddUrlQuery } from './utils/autoSyncConnector';
 
 const App: React.FC = () => {
@@ -61,7 +62,11 @@ const App: React.FC = () => {
       <Navbar />
 
       <main style={{ flex: 1, padding: '24px 28px', maxWidth: 1280, width: '100%', margin: '0 auto' }}>
+        {/* Smart Location & Currency Prompt */}
+        <LocationCurrencyPrompt />
+
         {/* Metrics + alert only on subscriptions tab */}
+
         {activeTab === 'subscriptions' && (
           <>
             <DashboardMetrics />

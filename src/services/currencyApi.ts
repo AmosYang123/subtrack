@@ -25,7 +25,22 @@ export const FALLBACK_RATES: Record<string, number> = {
   CNY: 7.24,
   HKD: 7.82,
   SEK: 10.65,
-  BRL: 5.15
+  NOK: 10.85,
+  DKK: 6.88,
+  PLN: 3.96,
+  BRL: 5.15,
+  MXN: 16.95,
+  KRW: 1370.0,
+  TWD: 32.4,
+  THB: 36.8,
+  IDR: 16200.0,
+  MYR: 4.72,
+  PHP: 58.2,
+  AED: 3.67,
+  SAR: 3.75,
+  ZAR: 18.4,
+  TRY: 32.5,
+  ILS: 3.72
 };
 
 // In-flight request deduplication map to prevent duplicate burst requests

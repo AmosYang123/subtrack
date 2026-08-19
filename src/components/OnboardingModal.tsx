@@ -37,7 +37,8 @@ export const OnboardingModal: React.FC = () => {
     setOnboardingModalOpen,
     subscriptions,
     importSubscriptions,
-    currency
+    currency,
+    detectedLocation
   } = useAppStore();
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('select_method');
@@ -658,8 +659,24 @@ export const OnboardingModal: React.FC = () => {
                 <ArrowLeft size={15} />
                 <span>Back to options</span>
               </button>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
-                {selectedPresetList.length} selected ({formatCurrency(totalMonthlyPresetEstimated, currency)}/mo)
+              <div className="d-flex align-items-center gap-2">
+                {detectedLocation && (
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      padding: '2px 8px',
+                      borderRadius: 100,
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    📍 {detectedLocation.flag} {detectedLocation.countryName} ({currency})
+                  </span>
+                )}
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
+                  {selectedPresetList.length} selected ({formatCurrency(totalMonthlyPresetEstimated, currency)}/mo)
+                </div>
               </div>
             </div>
 
@@ -668,7 +685,7 @@ export const OnboardingModal: React.FC = () => {
                 Select Your Subscriptions
               </h3>
               <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: 0 }}>
-                Tap the services you use. We’ll auto-populate standard pricing, logos, and links.
+                Tap the services you use. Standard pricing and billing cycles are automatically tailored for {detectedLocation?.countryName || 'your region'}.
               </p>
             </div>
 

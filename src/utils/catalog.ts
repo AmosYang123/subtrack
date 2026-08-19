@@ -643,20 +643,10 @@ export const CATEGORIES = [
   'Other'
 ];
 
-export const CURRENCIES = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar' },
-  { code: 'AUD', symbol: 'AU$', name: 'Australian Dollar' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
-  { code: 'NZD', symbol: 'NZ$', name: 'NZ Dollar' },
-  { code: 'SEK', symbol: 'kr', name: 'Swedish Krona' },
-  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
-];
+import { GLOBAL_CURRENCIES } from './locationCurrency';
+
+export const CURRENCIES = GLOBAL_CURRENCIES;
+
 
 /**
  * Intelligent matcher that finds a catalog service given a name, partial keyword, or pasted URL.

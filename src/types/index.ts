@@ -141,3 +141,14 @@ export interface UserAccount {
 }
 
 export type CloudSyncStatus = 'synced' | 'syncing' | 'offline' | 'local';
+
+export interface DetectedLocation {
+  countryCode: string;
+  countryName: string;
+  currency: string;
+  symbol: string;
+  flag: string;
+  timezone: string;
+  source: 'timezone' | 'locale' | 'geoip';
+}
+

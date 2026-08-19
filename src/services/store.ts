@@ -7,11 +7,13 @@ import {
   ActiveTab,
   SubscriptionStatus,
   UserAccount,
-  CloudSyncStatus
+  CloudSyncStatus,
+  DetectedLocation
 } from '../types';
 import { fetchLiveExchangeRates, FALLBACK_RATES } from './currencyApi';
 import { REAL_DATA_PRESETS } from '../utils/presets';
 import { cloudSync, getSuggestedAccountEmails } from './cloudSync';
+import { detectUserLocationAndCurrency, fetchGeoIPLocation } from '../utils/locationCurrency';
 
 interface AppStore {
   // State
@@ -19,6 +21,9 @@ interface AppStore {
   paymentMethods: PaymentMethod[];
   theme: ThemeMode;
   currency: string;
+  detectedLocation: DetectedLocation;
+  locationPromptDismissed: boolean;
+  isCurrencyExplicitlySet: boolean;
   exchangeRates: Record<string, number>;
   ratesLastUpdated: string | null;
   isRatesLoading: boolean;
@@ -62,7 +67,10 @@ interface AppStore {
   setDefaultPaymentMethod: (id: string) => void;
 
   setTheme: (theme: ThemeMode) => void;
-  setCurrency: (currency: string) => void;
+  setCurrency: (currency: string, isExplicit?: boolean) => void;
+  setDetectedLocation: (loc: DetectedLocation) => void;
+  dismissLocationPrompt: () => void;
+  applyDetectedCurrency: () => void;
   fetchRates: () => Promise<void>;
   setActiveTab: (tab: ActiveTab) => void;
   setFilters: (filters: Partial<FilterState>) => void;
@@ -87,6 +95,10 @@ const LEGACY_STORAGE_THEME_KEY = 'subtrack_theme';
 
 const STORAGE_CURRENCY_KEY = 'subtrax_currency';
 const LEGACY_STORAGE_CURRENCY_KEY = 'subtrack_currency';
+
+const STORAGE_LOCATION_DISMISSED_KEY = 'subtrax_location_prompt_dismissed';
+const STORAGE_CURRENCY_EXPLICIT_KEY = 'subtrax_currency_explicit';
+
 
 // Default to Tech & AI Engineer preset if first time opening
 const DEFAULT_PRESET = REAL_DATA_PRESETS[0];
@@ -165,11 +177,24 @@ export const useAppStore = create<AppStore>((set, get) => {
   );
   const initialUser = cloudSync.getStoredUser();
 
+  const detectedLocation = detectUserLocationAndCurrency();
+  const isCurrencyExplicitlySet = localStorage.getItem(STORAGE_CURRENCY_EXPLICIT_KEY) === 'true';
+  const locationPromptDismissed = localStorage.getItem(STORAGE_LOCATION_DISMISSED_KEY) === 'true';
+  const storedCurrency = loadStringWithMigration(STORAGE_CURRENCY_KEY, LEGACY_STORAGE_CURRENCY_KEY, '');
+
+  // If currency was not manually chosen, default directly to the detected local currency
+  const initialCurrency = isCurrencyExplicitlySet && storedCurrency
+    ? storedCurrency
+    : (storedCurrency || detectedLocation.currency || 'USD');
+
   return {
     subscriptions: initialSubs,
     paymentMethods: initialPayments,
     theme: (loadStringWithMigration(STORAGE_THEME_KEY, LEGACY_STORAGE_THEME_KEY, 'light') as ThemeMode),
-    currency: loadStringWithMigration(STORAGE_CURRENCY_KEY, LEGACY_STORAGE_CURRENCY_KEY, 'USD'),
+    currency: initialCurrency,
+    detectedLocation,
+    locationPromptDismissed,
+    isCurrencyExplicitlySet,
     exchangeRates: FALLBACK_RATES,
     ratesLastUpdated: null,
     isRatesLoading: false,
@@ -188,6 +213,7 @@ export const useAppStore = create<AppStore>((set, get) => {
     user: initialUser,
     syncStatus: initialUser ? 'synced' : 'local',
     suggestedAccountEmails: getSuggestedAccountEmails(initialSubs, initialUser),
+
 
     setUser: (user) => {
       set({
@@ -473,14 +499,33 @@ export const useAppStore = create<AppStore>((set, get) => {
       set({ theme });
     },
 
-    setCurrency: (currency) => {
+    setCurrency: (currency, isExplicit = true) => {
       localStorage.setItem(STORAGE_CURRENCY_KEY, currency);
+      if (isExplicit) {
+        localStorage.setItem(STORAGE_CURRENCY_EXPLICIT_KEY, 'true');
+        localStorage.setItem(STORAGE_LOCATION_DISMISSED_KEY, 'true');
+        set({ isCurrencyExplicitlySet: true, locationPromptDismissed: true });
+      }
       set({ currency });
       get().fetchRates();
 
       const user = get().user;
       if (user) {
         cloudSync.pushToCloud(user, get().subscriptions, get().paymentMethods, currency);
+      }
+    },
+
+    setDetectedLocation: (detectedLocation) => set({ detectedLocation }),
+
+    dismissLocationPrompt: () => {
+      localStorage.setItem(STORAGE_LOCATION_DISMISSED_KEY, 'true');
+      set({ locationPromptDismissed: true });
+    },
+
+    applyDetectedCurrency: () => {
+      const loc = get().detectedLocation;
+      if (loc && loc.currency) {
+        get().setCurrency(loc.currency, true);
       }
     },
 
@@ -508,13 +553,40 @@ export const useAppStore = create<AppStore>((set, get) => {
 // Backwards compatibility stub for older imports
 export const useStore = useAppStore;
 
-// Initial rate fetch & cloud sync listener
+// Initial rate fetch, location geo enhancement & cloud sync listener
 if (typeof window !== 'undefined') {
   setTimeout(async () => {
     useAppStore.getState().fetchRates();
     const currentUser = useAppStore.getState().user;
     if (currentUser) {
       await useAppStore.getState().syncWithCloud();
+    }
+
+    // Background non-blocking Geo-IP confirmation
+    try {
+      const geoResult = await fetchGeoIPLocation();
+      if (geoResult && geoResult.countryCode && geoResult.currency) {
+        const currentLoc = useAppStore.getState().detectedLocation;
+        // If Geo-IP offers a confirmed match and timezone was ambiguous, refine detected location
+        if (currentLoc.countryCode !== geoResult.countryCode) {
+          const refinedLocation: DetectedLocation = {
+            countryCode: geoResult.countryCode,
+            countryName: geoResult.countryName || currentLoc.countryName,
+            currency: geoResult.currency,
+            symbol: geoResult.symbol || '$',
+            flag: geoResult.flag || '📍',
+            timezone: currentLoc.timezone,
+            source: 'geoip'
+          };
+          useAppStore.setState({ detectedLocation: refinedLocation });
+          // If user hasn't explicitly set currency yet and was on fallback, update currency
+          if (!useAppStore.getState().isCurrencyExplicitlySet) {
+            useAppStore.getState().setCurrency(geoResult.currency, false);
+          }
+        }
+      }
+    } catch {
+      // Ignore background Geo-IP failure
     }
   }, 100);
 
@@ -536,3 +608,4 @@ if (typeof window !== 'undefined') {
     useAppStore.setState({ syncStatus: status });
   });
 }
+

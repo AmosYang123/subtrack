@@ -196,25 +196,24 @@ export function calculateMetrics(
   };
 }
 
-export function formatCurrency(amount: number, currencyCode: string = 'USD'): string {
-  const symbolMap: Record<string, string> = {
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-    CAD: 'CA$',
-    AUD: 'AU$',
-    JPY: '¥',
-    INR: '₹',
-    SGD: 'S$',
-    CHF: 'CHF ',
-    NZD: 'NZ$',
-    SEK: 'kr ',
-    BRL: 'R$ '
-  };
+import { getCurrencySymbol, getCurrencyMeta } from './locationCurrency';
 
-  const symbol = symbolMap[currencyCode] || '$';
-  return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export function formatCurrency(amount: number, currencyCode: string = 'USD'): string {
+  const norm = (currencyCode || 'USD').toUpperCase();
+  const meta = getCurrencyMeta(norm);
+  const symbol = meta?.symbol || getCurrencySymbol(norm);
+  const decimals = meta?.decimals !== undefined ? meta.decimals : 2;
+
+  const formattedNumber = (amount || 0).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+
+  // Handle spacing for multi-letter currency symbols (e.g. CHF 10.00, AED 20.00, RM 15.00, kr 100.00)
+  const needsSpace = symbol.length > 2 || /^[a-zA-Z]+$/.test(symbol);
+  return `${symbol}${needsSpace ? ' ' : ''}${formattedNumber}`;
 }
+
 
 export function getRenewalUrgencyColor(daysLeft: number): { badge: string; text: string; label: string } {
   if (daysLeft < 0) {

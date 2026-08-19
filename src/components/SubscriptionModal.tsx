@@ -41,7 +41,9 @@ export const SubscriptionModal: React.FC = () => {
     paymentMethods,
     suggestedAccountEmails,
     user,
-    currency: defaultCurrency
+    currency: defaultCurrency,
+    detectedLocation,
+    exchangeRates
   } = useAppStore();
 
   const [formData, setFormData] = useState<Partial<Subscription>>({
@@ -332,12 +334,34 @@ export const SubscriptionModal: React.FC = () => {
             </Col>
             <Col xs={6} md={3}>
               <Form.Group>
-                <Form.Label>Currency</Form.Label>
+                <Form.Label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Currency</span>
+                  {detectedLocation && formData.currency !== detectedLocation.currency && (
+                    <button
+                      type="button"
+                      className="btn-ghost p-0"
+                      style={{ fontSize: 10.5, color: 'var(--primary)', fontWeight: 600, textDecoration: 'underline' }}
+                      onClick={() => setFormData({ ...formData, currency: detectedLocation.currency })}
+                      title={`Use detected local currency (${detectedLocation.countryName})`}
+                    >
+                      {detectedLocation.flag} {detectedLocation.currency}
+                    </button>
+                  )}
+                </Form.Label>
                 <Form.Select
                   value={formData.currency || defaultCurrency}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                 >
-                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>)}
+                  {detectedLocation && (
+                    <option value={detectedLocation.currency}>
+                      {detectedLocation.flag} {detectedLocation.currency} ({detectedLocation.symbol}) • Local
+                    </option>
+                  )}
+                  {CURRENCIES.filter(c => !detectedLocation || c.code !== detectedLocation.currency).map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.code} ({c.symbol}) - {c.name}
+                    </option>
+                  ))}
                 </Form.Select>
               </Form.Group>
             </Col>

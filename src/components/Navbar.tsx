@@ -41,7 +41,8 @@ export const Navbar: React.FC = () => {
     setAutoSyncModalOpen,
     setOnboardingModalOpen,
     user,
-    syncStatus
+    syncStatus,
+    detectedLocation
   } = useAppStore();
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -197,23 +198,59 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
-          {/* Currency Switcher */}
+          {/* Currency Switcher with Location Awareness */}
           <Dropdown>
-            <Dropdown.Toggle as="button" className="btn-ghost d-flex align-items-center gap-1" id="currency-dropdown" title="Live exchange rates">
-              <span style={{ fontSize: 12.5, fontWeight: 550 }}>{currency}</span>
-              {isRatesLoading && <RefreshCw size={10} className="spin" />}
+            <Dropdown.Toggle
+              as="button"
+              className="btn-ghost d-flex align-items-center gap-1.5"
+              id="currency-dropdown"
+              title={`Display currency: ${currency} (Live exchange rates) • Location: ${detectedLocation?.countryName || 'Auto-detected'}`}
+            >
+              <span style={{ fontSize: 13, lineHeight: 1 }}>
+                {CURRENCIES.find(c => c.code === currency)?.flag || '📍'}
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 600 }}>{currency}</span>
+              {isRatesLoading && <RefreshCw size={10} className="spin text-primary" />}
             </Dropdown.Toggle>
-            <Dropdown.Menu align="end" style={{ maxHeight: 280, overflowY: 'auto' }}>
+            <Dropdown.Menu align="end" style={{ maxHeight: 320, overflowY: 'auto', minWidth: 260 }}>
+              {detectedLocation && (
+                <>
+                  <Dropdown.Header style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>
+                    📍 Suggested for your location
+                  </Dropdown.Header>
+                  <Dropdown.Item
+                    active={detectedLocation.currency === currency}
+                    onClick={() => setCurrency(detectedLocation.currency)}
+                    style={{ fontWeight: 600, padding: '7px 14px' }}
+                  >
+                    <div className="d-flex align-items-center justify-content-between">
+                      <span>
+                        <span style={{ marginRight: 8, fontSize: 14 }}>{detectedLocation.flag}</span>
+                        <span>{detectedLocation.countryName} ({detectedLocation.currency})</span>
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{detectedLocation.symbol}</span>
+                    </div>
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                </>
+              )}
               <Dropdown.Header style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Display Currency (Live Rates)
+                All Currencies (Live Rates)
               </Dropdown.Header>
               {CURRENCIES.map(c => (
                 <Dropdown.Item key={c.code} active={c.code === currency} onClick={() => setCurrency(c.code)}>
-                  {c.symbol} {c.name} ({c.code})
+                  <div className="d-flex align-items-center justify-content-between">
+                    <span>
+                      <span style={{ marginRight: 8, fontSize: 14 }}>{c.flag}</span>
+                      <span>{c.name} ({c.code})</span>
+                    </span>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{c.symbol}</span>
+                  </div>
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
           </Dropdown>
+
 
           {/* Dark/Light toggle */}
           <button
